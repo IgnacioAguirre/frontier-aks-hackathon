@@ -8,9 +8,9 @@ Hardcoded passwords and connection strings in Kubernetes manifests are a serious
 anti-pattern. **Never commit secrets to Git.** In this challenge you will eliminate all
 hardcoded credentials from your deployments using Azure-native identity and secret management.
 
-> **Important:** The legacy **AAD Pod Identity** add-on is deprecated. This challenge uses
-> **Workload Identity** (Entra ID Federated Credentials), which requires no DaemonSets,
-> no CRDs for identity injection, and no static credentials in pods.
+You will use **Workload Identity** (Entra ID Federated Credentials) — the current standard
+for pod-level Azure access. It requires no DaemonSets, no CRDs for identity injection, and
+no static credentials in pods.
 
 ## Description
 
@@ -37,7 +37,7 @@ hardcoded credentials from your deployments using Azure-native identity and secr
 2. A Managed Identity with a federated credential exists, bound to the Kubernetes `ServiceAccount`.
 3. The API pod reads the secret from the mounted CSI volume — no hardcoded secrets in any manifest.
 4. Show that the Kubernetes `ServiceAccount` has the required annotation.
-5. Explain to your coach why **Workload Identity** is preferred over Pod Identity and over Kubernetes Secrets for sensitive values.
+5. Explain to your coach why secrets should never be stored in Kubernetes Secret objects or environment variables for sensitive values, and what **Workload Identity** + Key Vault offers instead.
 
 ## Advanced Challenges (Optional)
 
@@ -50,4 +50,4 @@ hardcoded credentials from your deployments using Azure-native identity and secr
 - [Use the Secrets Store CSI driver with AKS](https://learn.microsoft.com/azure/aks/csi-secrets-store-driver)
 - [Azure Key Vault RBAC guide](https://learn.microsoft.com/azure/key-vault/general/rbac-guide)
 - [Configure federated identity credentials](https://learn.microsoft.com/azure/active-directory/workload-identities/workload-identity-federation-create-trust)
-- [Migrate from Pod Identity to Workload Identity](https://learn.microsoft.com/azure/aks/workload-identity-migrate-from-pod-identity)
+- [Secrets Store CSI driver overview](https://learn.microsoft.com/azure/aks/csi-secrets-store-overview)

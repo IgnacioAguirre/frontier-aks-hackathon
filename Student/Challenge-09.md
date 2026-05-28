@@ -40,7 +40,7 @@ A service mesh adds secure service-to-service communication, traffic control, an
 2. Mutual TLS is enforced in strict mode for service-to-service communication.
 3. Traffic management rules send a controlled portion of requests to the canary API version.
 4. Mesh observability shows service traffic and helps verify the rollout behavior.
-5. You can explain to your coach why the AKS managed Istio add-on is preferred here and why OSM is no longer the recommended path.
+5. You can explain to your coach why you chose the AKS managed Istio add-on and how it fits the production-ready posture of this cluster.
 
 ## Learning Resources
 

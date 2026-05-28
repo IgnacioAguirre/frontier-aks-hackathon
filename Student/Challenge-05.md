@@ -6,7 +6,7 @@
 
 You cannot operate what you cannot see. A production AKS cluster needs metrics, logs, and
 traces. In this challenge you will build a complete observability stack using Azure-native
-managed services — no self-managed Prometheus or ELK stack required.
+managed services.
 
 > **Note:** The old `az aks enable-addons --addons monitoring` Container Insights path for
 > metrics is being replaced by a Prometheus-first model. Use Azure Managed Prometheus for

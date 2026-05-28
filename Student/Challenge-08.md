@@ -26,7 +26,6 @@ A secure AKS platform uses layered controls rather than a single feature. In thi
 ## Notes
 
 - NOTE: Azure Policy enforcement takes a few minutes to activate after assignment — this is expected.
-- NOTE: AAD Pod Identity is deprecated. If identity for workloads comes up, the modern pattern is Workload Identity.
 - NOTE: Namespace-scoped access should be demonstrably different from cluster-wide operator access.
 
 ## Optional Advanced
