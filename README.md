@@ -6,9 +6,7 @@ This expert-level hack takes you through the full lifecycle of running a product
 application on **Azure Kubernetes Service (AKS)** using current 2025 best practices.
 
 You will start from zero — containerizing an application, deploying an AKS cluster, and
-progressively hardening, scaling, observing, and operating it. Every challenge reflects
-technologies that are **generally available and actively supported** today:
-every service is generally available and actively supported.
+progressively hardening, scaling, observing, and operating it.
 
 By the end of the hack you will have hands-on experience with:
 

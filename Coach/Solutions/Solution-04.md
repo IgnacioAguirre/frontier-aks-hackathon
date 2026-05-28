@@ -14,14 +14,6 @@
   selector labels alone) — it flows via the pod template spec labels.
 - Verify CSI driver running: `kubectl get pods -n kube-system | grep secrets-store`
 
-### Key Concept to Emphasize
-
-Workload Identity supersedes AAD Pod Identity. The key differences:
-- No DaemonSet (NMI) running on every node
-- No CRDs for `AzureIdentity` / `AzureIdentityBinding`
-- Uses standard OIDC federation — works with any cloud, not Azure-specific
-- No risk of privilege escalation via the NMI DaemonSet
-
 ## Solution
 
 ### Part 1: Key Vault and Secret
