@@ -25,7 +25,7 @@ GitOps turns your Git repository into the source of truth for cluster state. In 
 
 ## Notes
 
-- NOTE: Flux v1 is retired. This challenge is only about Flux v2.
+- NOTE: Use the `microsoft.flux` AKS extension (`az k8s-configuration flux`) — not a manual Flux bootstrap.
 - NOTE: Do not store application secrets in the GitOps repository. Continue using secure secret management patterns from earlier challenges.
 - NOTE: Reconciliation can take a short time. Validate the observed state after Flux has had time to process the latest commit.
 
