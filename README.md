@@ -105,7 +105,12 @@ Coaches can provide a `Resources.zip` with source code for Challenge 01.
 
 ## Acknowledgements
 
-This hackathon builds on the foundations of:
-- [001-IntroToKubernetes](https://github.com/microsoft/WhatTheHack/tree/master/001-IntroToKubernetes)
-- [023-AdvancedKubernetes](https://github.com/microsoft/WhatTheHack/tree/master/023-AdvancedKubernetes)
-- [039-AKSEnterpriseGrade](https://github.com/microsoft/WhatTheHack/tree/master/039-AKSEnterpriseGrade)
+This hackathon was inspired by three existing WhatTheHack events. Content has been
+redesigned from the ground up for an expert audience using current AKS capabilities,
+but credit goes to the original authors for the challenge concepts and application:
+
+| Source | Focus |
+|--------|-------|
+| [001 — Intro to Kubernetes](https://github.com/microsoft/WhatTheHack/tree/master/001-IntroToKubernetes) | Core Kubernetes and AKS fundamentals |
+| [023 — Advanced Kubernetes](https://github.com/microsoft/WhatTheHack/tree/master/023-AdvancedKubernetes) | Scaling, service mesh, GitOps, and security |
+| [039 — AKS Enterprise Grade](https://github.com/microsoft/WhatTheHack/tree/master/039-AKSEnterpriseGrade) | Networking, identity, storage, and fleet management |

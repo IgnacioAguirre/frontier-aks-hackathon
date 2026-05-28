@@ -27,8 +27,6 @@ requirements, and a suggested agenda.
 | AI-01 | AI on AKS Foundations *(optional)* | [Solution-AI-01.md](./Solutions/Solution-AI-01.md) |
 | AI-02 | LLM Inference with KAITO *(optional)* | [Solution-AI-02.md](./Solutions/Solution-AI-02.md) |
 
-Also see: [Deprecation-Cheatsheet.md](./Deprecation-Cheatsheet.md)
-
 ---
 
 ## Azure Requirements
@@ -113,11 +111,3 @@ Remind all teams to delete resources at the end:
 az group delete --name rg-frontier-aks --no-wait --yes
 ```
 
----
-
-## Deprecation Reference
-
-See [Deprecation-Cheatsheet.md](./Deprecation-Cheatsheet.md) for the full list of
-deprecated items found across the source hackathons (001, 023, 039) and their
-modern replacements. If a team tries to use any of these deprecated approaches,
-redirect them to the cheatsheet.
