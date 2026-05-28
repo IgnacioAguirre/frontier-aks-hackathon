@@ -6,8 +6,7 @@
 
 With a cluster running, it is time to deploy the **FabTechOps** application and expose it
 to the internet. You will package the application as a Helm chart and route external traffic
-to it using the AKS **App Routing** add-on — the modern, production-grade replacement for
-the deprecated HTTP Application Routing preview add-on.
+to it using the AKS **App Routing** add-on — the production-grade, GA ingress controller for AKS.
 
 ## Description
 
@@ -21,7 +20,7 @@ the deprecated HTTP Application Routing preview add-on.
   - **NOTE:** Sample YAML templates are provided in the `Resources.zip` from your coach.
 - Create an **Ingress resource** to route external HTTP traffic to the web component.
   - Use `ingressClassName: webapprouting.kubernetes.azure.com` — the App Routing add-on class.
-  - **NOTE:** The deprecated `extensions/v1beta1` Ingress API was removed in Kubernetes 1.22. Use `networking.k8s.io/v1`.
+  - **NOTE:** Always use `networking.k8s.io/v1` as the Ingress API version.
 - Verify the application is accessible from a browser.
 - Demonstrate a **Helm upgrade** (e.g., change the replica count) and a **Helm rollback**.
 

@@ -16,7 +16,7 @@
 
 ### Key Concept to Emphasize
 
-Workload Identity replaces **AAD Pod Identity** (deprecated). The differences:
+Workload Identity supersedes AAD Pod Identity. The key differences:
 - No DaemonSet (NMI) running on every node
 - No CRDs for `AzureIdentity` / `AzureIdentityBinding`
 - Uses standard OIDC federation — works with any cloud, not Azure-specific

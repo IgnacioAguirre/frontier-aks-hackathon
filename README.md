@@ -8,7 +8,7 @@ application on **Azure Kubernetes Service (AKS)** using current 2025 best practi
 You will start from zero — containerizing an application, deploying an AKS cluster, and
 progressively hardening, scaling, observing, and operating it. Every challenge reflects
 technologies that are **generally available and actively supported** today:
-no deprecated add-ons, no retired APIs, no stale tooling.
+every service is generally available and actively supported.
 
 By the end of the hack you will have hands-on experience with:
 

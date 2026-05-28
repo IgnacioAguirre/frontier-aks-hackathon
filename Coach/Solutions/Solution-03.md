@@ -8,7 +8,7 @@
   **removed in Kubernetes 1.22**. Only `networking.k8s.io/v1` is valid.
 - Another common error: using the annotation `kubernetes.io/ingress.class: nginx` instead of
   the spec field `spec.ingressClassName: webapprouting.kubernetes.azure.com`. The annotation
-  is deprecated — enforce use of `spec.ingressClassName`.
+  is not supported — enforce use of `spec.ingressClassName`.
 - For the database, steer teams toward **Azure Database for PostgreSQL Flexible Server** unless
   time is tight. The in-cluster option is fine for a quick demo but should not be used as a
   production pattern.

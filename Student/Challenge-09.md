@@ -24,7 +24,7 @@ A service mesh adds secure service-to-service communication, traffic control, an
 
 ## Notes
 
-- NOTE: Open Service Mesh is deprecated and is not the target technology for this challenge.
+- NOTE: The target technology for this challenge is AKS managed Istio (`az aks mesh enable`) — not Open Service Mesh.
 - NOTE: Strict mTLS should prevent plaintext communication from workloads that are outside the mesh.
 - NOTE: The managed AKS observability path centers on Prometheus and Grafana. Kiali may depend on how your environment is configured.
 

@@ -4,9 +4,8 @@
 
 ## Notes & Guidance
 
-- **Use AKS managed Istio (`az aks mesh enable`) — NOT the deprecated OSM add-on.**
-  The OSM AKS add-on is deprecated as of 2024. Any reference to `osm` CLI or
-  `openservicemesh.io` annotations should be corrected immediately.
+- **Use AKS managed Istio (`az aks mesh enable`)** — the supported service mesh add-on for AKS.
+  Any reference to `osm` CLI or `openservicemesh.io` annotations should be corrected immediately.
 - The Istio revision label format is `asm-1-XX` — get the exact value with:
   `az aks mesh get-revisions --location $LOCATION`
 - After enabling the namespace label for sidecar injection, **all pods must be restarted**
