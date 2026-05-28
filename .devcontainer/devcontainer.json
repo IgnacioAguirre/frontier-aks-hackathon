@@ -1,7 +1,6 @@
 {
     "name": "Frontier AKS Hackathon",
     "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
-
     // Install all CLI tools students need via Dev Container Features
     "features": {
         // Azure CLI — latest stable
@@ -18,13 +17,12 @@
         // kubelogin (AAD / Entra token exchange for AKS)
         "ghcr.io/azure/azure-dev/azd:0": {},
         // Flux CLI v2
-        "ghcr.io/devcontainers-contrib/features/flux2:1": {},
+        "ghcr.io/devcontainers-extra/features/flux2:1": {},
         // GitHub CLI
         "ghcr.io/devcontainers/features/github-cli:1": {},
         // Docker-in-Docker (for ACR Tasks / local image builds)
         "ghcr.io/devcontainers/features/docker-in-docker:2": {}
     },
-
     // VS Code extensions pre-installed inside the container
     "customizations": {
         "vscode": {
@@ -61,9 +59,7 @@
             }
         }
     },
-
     "remoteUser": "vscode",
-
     // Verify all tools are available after container creation
     "postCreateCommand": "bash .devcontainer/post-create.sh"
 }
