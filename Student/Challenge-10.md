@@ -4,210 +4,47 @@
 
 ## Introduction
 
-Kubernetes pods are ephemeral — when a pod dies, its local data is gone. In this challenge
-you will configure **persistent storage** for the FabTechOps database using:
-
-- **Azure Disk** (block storage — for single-node, high-performance workloads like databases)
-- **Azure Files** (shared file storage — for multi-pod access, e.g., file uploads)
-- **Dynamic provisioning** — AKS automatically creates the underlying storage resource
-- **Azure Backup for AKS** — snapshot and restore PersistentVolumeClaims
+Pods are disposable, but application data is not. In this challenge you will add durable storage to FabTech so the database keeps its data across pod restarts and shared application content can be accessed by more than one pod.
 
 ## Description
 
-### Part 1: Deploy PostgreSQL with Persistent Storage (Azure Disk)
+- Replace the temporary database storage with dynamically provisioned persistent storage backed by Azure Disks.
+- Use a CSI-backed storage class that is appropriate for a stateful database workload.
+- Ensure the database workload is using a persistent volume claim rather than ephemeral container storage.
+- Validate persistence by creating application data, recreating the database pod, and confirming that the data remains available.
+- Add a separate shared storage path backed by Azure Files for content that must be mounted read-write by multiple pods at the same time.
+- Update the application design so the shared storage can be accessed from more than one workload.
+- Compare the access mode requirements for database storage versus shared application files.
 
-Replace the in-memory database from Challenge 03 with a StatefulSet backed by an Azure Disk:
+## Hints
 
-```yaml
-# postgres-statefulset.yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgres
-  namespace: fabtech
-spec:
-  serviceName: postgres
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      containers:
-      - name: postgres
-        image: postgres:16
-        env:
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: fabtech-db-secret
-              key: password
-        - name: POSTGRES_DB
-          value: fabtech
-        ports:
-        - containerPort: 5432
-        volumeMounts:
-        - name: postgres-data
-          mountPath: /var/lib/postgresql/data
-  volumeClaimTemplates:
-  - metadata:
-      name: postgres-data
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: managed-csi-premium
-      resources:
-        requests:
-          storage: 10Gi
-```
+- Azure Disk is typically the right fit for a single-writer database volume.
+- Azure Files is designed for shared access across multiple pods and nodes.
+- ReadWriteOnce and ReadWriteMany describe different storage behaviors and should influence your design choices.
+- Dynamic provisioning should create the backing storage resource when the claim is created.
 
-```bash
-kubectl apply -f postgres-statefulset.yaml -n fabtech
-kubectl get pvc -n fabtech
-kubectl get pv
-```
+## Notes
 
-Verify the Azure Disk was created:
+- NOTE: The database scenario in this challenge should use managed disk-backed persistent storage, not temporary node storage.
+- NOTE: Shared read-write storage is a separate requirement from database persistence and usually needs a different storage type.
+- NOTE: Test persistence with a pod recreation event, not only with an application restart inside the same pod.
 
-```bash
-# The PV name contains the disk resource ID
-kubectl describe pv $(kubectl get pv -o jsonpath='{.items[0].metadata.name}') | grep VolumeHandle
-```
+## Optional Advanced
 
-### Part 2: Verify Data Persistence
-
-Write data to the database, then delete the pod and verify data survives:
-
-```bash
-# Write some data
-POSTGRES_POD=$(kubectl get pod -n fabtech -l app=postgres -o jsonpath='{.items[0].metadata.name}')
-kubectl exec -n fabtech $POSTGRES_POD -- \
-  psql -U postgres -d fabtech -c "CREATE TABLE test (id SERIAL, value TEXT); INSERT INTO test (value) VALUES ('persistence-test');"
-
-# Delete the pod (StatefulSet will recreate it)
-kubectl delete pod $POSTGRES_POD -n fabtech
-
-# Wait for the new pod to be ready
-kubectl get pods -n fabtech -w
-
-# Verify data survived
-NEW_POD=$(kubectl get pod -n fabtech -l app=postgres -o jsonpath='{.items[0].metadata.name}')
-kubectl exec -n fabtech $NEW_POD -- psql -U postgres -d fabtech -c "SELECT * FROM test;"
-```
-
-### Part 3: Azure Files — Shared Storage for Multi-Pod Access
-
-Azure Disk uses `ReadWriteOnce` — only one pod can mount it at a time. For shared storage,
-use Azure Files with `ReadWriteMany`:
-
-```yaml
-# shared-pvc.yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: fabtech-uploads
-  namespace: fabtech
-spec:
-  accessModes:
-  - ReadWriteMany
-  storageClassName: azurefile-csi-premium
-  resources:
-    requests:
-      storage: 5Gi
-```
-
-```bash
-kubectl apply -f shared-pvc.yaml
-kubectl get pvc fabtech-uploads -n fabtech
-```
-
-Mount the shared volume in both the API and web deployments:
-
-```yaml
-# Add to the deployment spec:
-volumes:
-- name: uploads
-  persistentVolumeClaim:
-    claimName: fabtech-uploads
-containers:
-- name: api
-  volumeMounts:
-  - name: uploads
-    mountPath: /app/uploads
-```
-
-Verify multiple pods can write simultaneously:
-
-```bash
-API_POD=$(kubectl get pod -n fabtech -l app=fabtech-api -o jsonpath='{.items[0].metadata.name}')
-WEB_POD=$(kubectl get pod -n fabtech -l app=fabtech-web -o jsonpath='{.items[0].metadata.name}')
-
-kubectl exec -n fabtech $API_POD -- sh -c "echo 'from-api' > /app/uploads/test.txt"
-kubectl exec -n fabtech $WEB_POD -- cat /app/uploads/test.txt
-# Expected output: from-api
-```
-
-### Part 4: Storage Classes and Premium SSD v2
-
-List available storage classes:
-
-```bash
-kubectl get storageclass
-```
-
-Key storage classes on AKS:
-
-| Storage Class | Type | Access Mode | Best For |
-|--------------|------|-------------|----------|
-| `managed-csi` | Azure Disk Standard SSD | RWO | Dev/test databases |
-| `managed-csi-premium` | Azure Disk Premium SSD | RWO | Production databases |
-| `azurefile-csi` | Azure Files Standard | RWX | Shared file access |
-| `azurefile-csi-premium` | Azure Files Premium | RWX | High-performance shared files |
-
-### Part 5: Azure Backup for AKS
-
-Enable AKS Backup to protect PersistentVolumeClaims:
-
-```bash
-# Create a backup vault
-az dataprotection backup-vault create \
-  --resource-group $RG \
-  --vault-name bv-frontier \
-  --location eastus \
-  --storage-settings "[{type:LocallyRedundant,datastore-type:VaultStore}]"
-
-# Enable trusted access for the backup vault on AKS
-az aks trustedaccess rolebinding create \
-  --resource-group $RG \
-  --cluster-name $CLUSTER_NAME \
-  --name backup-access \
-  --source-resource-id \
-  $(az dataprotection backup-vault show --resource-group $RG --vault-name bv-frontier --query id -o tsv) \
-  --roles Microsoft.DataProtection/backupVaults/backup-operator
-```
-
-Create a backup policy targeting the `fabtech` namespace PVCs:
-
-```bash
-# In the Azure Portal: Backup center → + Backup → AKS → Select cluster and namespace
-# Or use the az dataprotection backup-policy create CLI
-```
-
-Simulate a restore by deleting a PVC and restoring from backup.
+- Protect the persistent volumes with Azure Backup for AKS and review the restore workflow.
+- Compare standard and premium storage classes for cost and performance trade-offs.
+- Discuss how backup and restore expectations differ for databases versus shared file content.
 
 ## Success Criteria
 
-1. PostgreSQL runs as a `StatefulSet` with an Azure Disk PVC — show `kubectl get pvc -n fabtech`.
-2. Data **persists** after deleting and recreating the PostgreSQL pod.
-3. Azure Files PVC is created with `ReadWriteMany` access mode — show both pods writing to it.
-4. Explain to your coach when to use **Azure Disk** vs **Azure Files** vs **in-cluster storage**.
+1. The database workload uses a dynamically provisioned persistent volume claim backed by Azure Disk.
+2. Database data survives deletion and recreation of the database pod.
+3. A shared Azure Files-backed claim is available to multiple pods with read-write access.
+4. You can explain to your coach when to choose Azure Disk, Azure Files, ReadWriteOnce, and ReadWriteMany.
 
 ## Learning Resources
 
-- [Storage options in AKS](https://learn.microsoft.com/azure/aks/concepts-storage)
-- [Azure Disk CSI driver](https://learn.microsoft.com/azure/aks/azure-disk-csi)
-- [Azure Files CSI driver](https://learn.microsoft.com/azure/aks/azure-files-csi)
-- [Azure Backup for AKS](https://learn.microsoft.com/azure/backup/azure-kubernetes-service-backup-overview)
-- [StatefulSets in Kubernetes](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)
+- [Storage options for applications in AKS](https://learn.microsoft.com/azure/aks/concepts-storage)
+- [Use Azure Disk CSI driver in AKS](https://learn.microsoft.com/azure/aks/azure-disk-csi)
+- [Use Azure Files CSI driver in AKS](https://learn.microsoft.com/azure/aks/azure-files-csi)
+- [Azure Kubernetes Service backup overview](https://learn.microsoft.com/azure/backup/azure-kubernetes-service-backup-overview)

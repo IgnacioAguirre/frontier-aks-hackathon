@@ -5,109 +5,36 @@
 ## Introduction
 
 Every cloud-native journey starts with a container. In this challenge you will package the
-**FabTechOps** application into Docker images, deploy an Azure Container Registry (ACR),
-and push your images — all without storing credentials in environment variables.
+**FabTechOps** application into Docker container images, store them in a private registry,
+and verify they are ready for deployment to Kubernetes.
 
 ## Description
 
-### Part 1: Build Container Images
+Your coach will provide a `Resources.zip` with the application source code. Pre-built images
+are also available on Docker Hub (`whatthehackmsft/web` and `whatthehackmsft/api`) if you
+want to skip the local build.
 
-Your coach will provide a `Resources.zip` with the application source code.
+- Create a new **Azure Resource Group** for all resources used in this hackathon.
+- Deploy an **Azure Container Registry (ACR)** with the appropriate SKU to support the
+  features you will need in later challenges (private endpoints, geo-replication).
+- Build container images for the **API** and **Web** components of FabTechOps and publish
+  them to your ACR. You can build locally with Docker or use **ACR Tasks** to build in the cloud.
+  - **Hint:** ACR Tasks let you build images directly from source without a local Docker daemon.
+- Verify that both images are stored in the registry and can be listed.
 
-Pre-built images are also available on Docker Hub if you want to skip the build step:
-- `whatthehackmsft/web:latest`
-- `whatthehackmsft/api:latest`
-
-To build locally:
-
-```bash
-# Build the API image
-cd api/
-docker build -t fabtech-api:v1 .
-
-# Build the Web image
-cd ../web/
-docker build -t fabtech-web:v1 .
-```
-
-Run both containers locally and verify they start:
-
-```bash
-docker run -d -p 3001:3001 --name api fabtech-api:v1
-docker run -d -p 3000:3000 --name web fabtech-web:v1
-```
-
-> **Note:** Docker Desktop is optional. In later challenges AKS will pull images from
-> ACR — you do not need Docker locally to complete the rest of the hack.
-
-### Part 2: Deploy Azure Container Registry
-
-Create a resource group and an ACR instance:
-
-```bash
-LOCATION=eastus
-RG=rg-frontier-aks
-ACR_NAME=acrfrontier$RANDOM   # must be globally unique
-
-az group create --name $RG --location $LOCATION
-
-az acr create \
-  --resource-group $RG \
-  --name $ACR_NAME \
-  --sku Premium \
-  --location $LOCATION
-```
-
-> **Why Premium?** Premium unlocks geo-replication, private endpoints, and content trust
-> — features you will use in later challenges.
-
-### Part 3: Authenticate and Push Images
-
-Use the ACR login server to tag and push:
-
-```bash
-ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer -o tsv)
-
-# Tag images
-docker tag fabtech-api:v1 $ACR_LOGIN_SERVER/fabtech-api:v1
-docker tag fabtech-web:v1 $ACR_LOGIN_SERVER/fabtech-web:v1
-
-# Login and push
-az acr login --name $ACR_NAME
-docker push $ACR_LOGIN_SERVER/fabtech-api:v1
-docker push $ACR_LOGIN_SERVER/fabtech-web:v1
-```
-
-Verify the images are in the registry:
-
-```bash
-az acr repository list --name $ACR_NAME -o table
-```
-
-### Part 4: Build Without a Local Docker Daemon (ACR Tasks)
-
-As an alternative to building locally, use **ACR Tasks** to build images in the cloud:
-
-```bash
-az acr build --registry $ACR_NAME --image fabtech-api:v1 ./api/
-az acr build --registry $ACR_NAME --image fabtech-web:v1 ./web/
-```
-
-> **Tip:** ACR Tasks are perfect for CI/CD scenarios where no local Docker daemon is available
-> (e.g., GitHub Actions runners, Cloud Shell).
+> **Note:** If you don't have Docker Desktop installed locally, ACR Tasks are the way to go.
+> You will need to understand how to authenticate to ACR without storing a password.
 
 ## Success Criteria
 
 1. An Azure Container Registry exists in your resource group.
-2. At least one of the following images is in ACR (built locally or via ACR Tasks):
-   - `fabtech-api:v1`
-   - `fabtech-web:v1`
-3. Show `az acr repository list` returning both images.
-4. Explain to your coach how ACR Tasks differ from a local `docker build + push` workflow.
+2. Both `fabtech-api:v1` and `fabtech-web:v1` images are in the registry.
+3. Demonstrate that you can list the repositories in your ACR.
+4. Explain to your coach the difference between building images locally vs. using ACR Tasks, and when you would choose each approach.
 
 ## Learning Resources
 
 - [Azure Container Registry overview](https://learn.microsoft.com/azure/container-registry/container-registry-intro)
-- [Build container images in the cloud with ACR Tasks](https://learn.microsoft.com/azure/container-registry/container-registry-tutorial-quick-task)
-- [ACR authentication overview](https://learn.microsoft.com/azure/container-registry/container-registry-authentication)
-- [ACR Premium tier features](https://learn.microsoft.com/azure/container-registry/container-registry-skus)
+- [ACR service tiers](https://learn.microsoft.com/azure/container-registry/container-registry-skus)
+- [Build images with ACR Tasks](https://learn.microsoft.com/azure/container-registry/container-registry-tutorial-quick-task)
+- [ACR authentication](https://learn.microsoft.com/azure/container-registry/container-registry-authentication)

@@ -5,114 +5,47 @@
 ## Introduction
 
 Before you can hack, you need the right tools. This challenge ensures your workstation (or
-cloud shell) is ready with a modern cloud-native toolset.
-
-> **Tip:** You can complete most challenges using **Azure Cloud Shell**, which already has
-> `az`, `kubectl`, and `helm` installed. However, setting up a local environment gives you
-> the best experience and mirrors real-world workflows.
+cloud shell) is ready with a modern cloud-native toolset for working with Azure and AKS.
 
 ## Description
 
-### Option A — Local Workstation Setup
+Set up a working environment with all the tools required for this hackathon:
 
-Install the following tools:
+- **Azure CLI** (version 2.65 or later)
+- **kubectl** — the Kubernetes CLI
+- **kubelogin** — needed for Entra ID authentication with AKS
+- **Helm** (version 3.14 or later) — the Kubernetes package manager
+- **Flux CLI v2** — for GitOps challenges
+- **Visual Studio Code** (recommended)
+- **Docker Desktop** (optional — only needed for local container builds in Challenge 01)
 
-| Tool | Minimum Version | Install Guide |
-|------|----------------|---------------|
-| Azure CLI | **>= 2.65.0** | [learn.microsoft.com](https://learn.microsoft.com/cli/azure/install-azure-cli) |
-| kubectl | Latest stable | `az aks install-cli` |
-| kubelogin | Latest | `az aks install-cli` or [GitHub](https://github.com/Azure/kubelogin) |
-| Helm | **>= 3.14** | [helm.sh](https://helm.sh/docs/intro/install/) |
-| Flux CLI v2 | Latest | [fluxcd.io](https://fluxcd.io/flux/installation/) |
-| Docker Desktop (optional) | Latest | [docker.com](https://www.docker.com/products/docker-desktop) |
-| Visual Studio Code | Latest | [code.visualstudio.com](https://code.visualstudio.com/) |
-| k9s (optional but recommended) | Latest | [k9scli.io](https://k9scli.io/topics/install/) |
+You may complete all challenges using a local workstation (**WSL2** on Windows, macOS, or
+Linux), **GitHub Codespaces**, or **Azure Cloud Shell**.
 
-**Windows users:** Install all tools inside **WSL2** (Ubuntu 22.04+) or use GitHub Codespaces.
-Do NOT install Azure CLI for Windows and then run it inside WSL — install the Linux version directly in WSL.
+> **Hint:** `kubectl` and `kubelogin` can both be installed with a single Azure CLI command.
+> Flux CLI has an official install script at [fluxcd.io/flux/installation](https://fluxcd.io/flux/installation/).
 
-**macOS users:** Use Homebrew:
+Once tools are installed, log in to your Azure subscription and verify you have the right
+access level. You will also need to ensure the required Azure resource providers are registered
+in your subscription.
 
-```bash
-brew install azure-cli helm fluxcd/tap/flux k9s
-az aks install-cli
-```
-
-### Option B — GitHub Codespaces / Dev Container
-
-If you prefer not to install anything locally, open this repository in GitHub Codespaces
-or a VS Code Dev Container — all required tools are pre-installed.
-
-### Option C — Azure Cloud Shell
-
-Navigate to [shell.azure.com](https://shell.azure.com) and select **Bash**. 
-
-```bash
-# Azure Cloud Shell already has az, kubectl, helm.
-# Install Flux CLI:
-curl -s https://fluxcd.io/install.sh | sudo bash
-# Install kubelogin:
-az aks install-cli
-```
-
-> **Note:** Cloud Shell sessions are ephemeral. You will need to re-install Flux CLI each session.
-
-### Verify Your Tools
-
-Run the following commands to confirm all tools are installed:
-
-```bash
-az --version
-kubectl version --client
-kubelogin --version
-helm version
-flux --version
-```
-
-### Student Resources
-
-Your coach will provide a `Resources.zip` file with manifests and source code used in
-later challenges. Download and unpack it in your working directory:
-
-```bash
-unzip Resources.zip -d ~/hackathon
-cd ~/hackathon
-```
-
-### Azure Login
-
-Log in to Azure and confirm your subscription:
-
-```bash
-az login
-az account show
-az account set --subscription "<your-subscription-id>"
-```
-
-### Register Required Resource Providers
-
-```bash
-az provider register --namespace Microsoft.ContainerService
-az provider register --namespace Microsoft.ContainerRegistry
-az provider register --namespace Microsoft.KeyVault
-az provider register --namespace Microsoft.Monitor
-az provider register --namespace Microsoft.Dashboard
-az provider register --namespace Microsoft.AlertsManagement
-```
+Your coach will provide a **`Resources.zip`** file containing source code and manifests used
+in later challenges. Unpack it and keep it handy.
 
 ## Success Criteria
 
 1. Running `az --version` shows Azure CLI **>= 2.65.0**
-2. Running `kubectl version --client` shows a client version
+2. Running `kubectl version --client` returns a client version
 3. Running `helm version` shows Helm **>= 3.14**
 4. Running `flux --version` shows Flux **v2.x**
-5. You are logged into Azure with `az account show` returning your subscription
-6. All resource providers above are registered (state: `Registered`)
+5. `az account show` returns your target subscription
+6. All required resource providers are in `Registered` state
 
 ## Learning Resources
 
 - [Install Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
-- [Install kubectl and kubelogin](https://learn.microsoft.com/azure/aks/learn/quick-kubernetes-deploy-cli#install-kubectl)
+- [Install kubectl and kubelogin](https://learn.microsoft.com/azure/aks/learn/quick-kubernetes-deploy-cli)
 - [Install Helm](https://helm.sh/docs/intro/install/)
 - [Install Flux CLI](https://fluxcd.io/flux/installation/)
 - [Azure Cloud Shell overview](https://learn.microsoft.com/azure/cloud-shell/overview)
+- [Azure resource providers](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-providers-and-types)

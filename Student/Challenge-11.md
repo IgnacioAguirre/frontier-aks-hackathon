@@ -4,250 +4,49 @@
 
 ## Introduction
 
-Enterprise clusters must meet strict networking requirements: no public API server, no
-unrestricted egress, private connectivity to PaaS services.
-
-In this challenge you will:
-1. Make the AKS API server **private**
-2. Configure **egress control** with Azure Firewall (or NAT Gateway)
-3. Enable **private endpoints** for ACR and Key Vault
-4. Explore advanced **Cilium network policies**
-
-> **Note:** This challenge works best with a fresh cluster. If modifying your existing
-> cluster is not possible, work through the architecture design and CLI commands with
-> your coach, then apply the changes to a secondary cluster.
+Enterprise AKS environments often require private management access, controlled outbound connectivity, and private access to supporting platform services. In this challenge you will design and validate a more locked-down networking posture for a production-style cluster.
 
 ## Description
 
-### Part 1: Private AKS Cluster
+- Create or use an AKS cluster with a private API server endpoint so cluster management stays on the private network path.
+- Ensure your cluster design uses Virtual Machine Scale Sets for node pools.
+- Provide a controlled outbound path for cluster and workload egress through Azure Firewall or NAT Gateway.
+- Document the required outbound dependencies so the cluster can function without unrestricted internet access.
+- Enable private connectivity for Azure Container Registry so image pulls do not rely on the public internet.
+- Configure the ingress path to use an internal load balancer rather than a public entry point.
+- Review how the application and platform traffic flows change when private endpoints and controlled egress are introduced.
 
-A private cluster exposes the Kubernetes API server only via a private IP, reachable only
-from within the VNet (or peered networks).
+## Hints
 
-```bash
-RG=rg-frontier-aks
-LOCATION=eastus
+- Private clusters affect both day-to-day administration and troubleshooting workflows.
+- Egress control is about choosing and governing the approved outbound path, not simply blocking everything.
+- Private DNS is an important part of making private endpoints work consistently.
+- Internal ingress is often paired with private front-end patterns elsewhere in the architecture.
 
-# Create a VNet with subnets
-az network vnet create \
-  --resource-group $RG \
-  --name vnet-frontier \
-  --address-prefix 10.0.0.0/16 \
-  --subnet-name snet-aks \
-  --subnet-prefix 10.0.0.0/22
+## Notes
 
-AKS_SUBNET_ID=$(az network vnet subnet show \
-  --resource-group $RG \
-  --vnet-name vnet-frontier \
-  --name snet-aks \
-  --query id -o tsv)
+- NOTE: VM Availability Sets for AKS node pools are retiring in September 2025. Use VMSS-based node pools.
+- NOTE: Private AKS clusters require a management path from within the network boundary or an approved remote access pattern.
+- NOTE: Private endpoints for registry access are especially valuable when image supply chain control is part of the security posture.
 
-# Deploy a private cluster
-az aks create \
-  --resource-group $RG \
-  --name aks-frontier-private \
-  --location $LOCATION \
-  --enable-private-cluster \
-  --vnet-subnet-id $AKS_SUBNET_ID \
-  --network-plugin azure \
-  --network-plugin-mode overlay \
-  --network-dataplane cilium \
-  --enable-oidc-issuer \
-  --enable-workload-identity \
-  --zones 1 2 3 \
-  --generate-ssh-keys
-```
+## Optional Advanced
 
-> With a private cluster, `kubectl` commands from outside the VNet will fail.
-> Connect via Azure Bastion, a jump server in the VNet, or Azure Cloud Shell with VNet injection.
-
-Run commands against the private cluster using the Azure CLI's built-in tunnel:
-
-```bash
-az aks command invoke \
-  --resource-group $RG \
-  --name aks-frontier-private \
-  --command "kubectl get nodes"
-```
-
-### Part 2: Private Endpoints for ACR and Key Vault
-
-```bash
-ACR_NAME=<your-acr-name>
-KV_NAME=<your-keyvault-name>
-
-# Create a subnet for private endpoints
-az network vnet subnet create \
-  --resource-group $RG \
-  --vnet-name vnet-frontier \
-  --name snet-pe \
-  --address-prefix 10.0.4.0/26 \
-  --disable-private-endpoint-network-policies true
-
-# Private endpoint for ACR
-az network private-endpoint create \
-  --resource-group $RG \
-  --name pe-acr \
-  --vnet-name vnet-frontier \
-  --subnet snet-pe \
-  --private-connection-resource-id \
-  $(az acr show --name $ACR_NAME --query id -o tsv) \
-  --group-id registry \
-  --connection-name conn-acr
-
-# Private DNS zone for ACR
-az network private-dns zone create \
-  --resource-group $RG \
-  --name privatelink.azurecr.io
-
-az network private-dns link vnet create \
-  --resource-group $RG \
-  --zone-name privatelink.azurecr.io \
-  --name link-acr \
-  --virtual-network vnet-frontier \
-  --registration-enabled false
-
-az network private-endpoint dns-zone-group create \
-  --resource-group $RG \
-  --endpoint-name pe-acr \
-  --name acr-zone-group \
-  --private-dns-zone privatelink.azurecr.io \
-  --zone-name registry
-
-# Disable public network access on ACR (optional)
-az acr update --name $ACR_NAME --public-network-enabled false
-```
-
-Repeat the same pattern for Key Vault using `--group-id vault` and DNS zone `privatelink.vaultcore.azure.net`.
-
-### Part 3: Egress Control with Azure Firewall
-
-Create a dedicated subnet for Azure Firewall:
-
-```bash
-az network vnet subnet create \
-  --resource-group $RG \
-  --vnet-name vnet-frontier \
-  --name AzureFirewallSubnet \
-  --address-prefix 10.0.5.0/26
-
-# Create Firewall (Standard tier)
-az network firewall create \
-  --resource-group $RG \
-  --name fw-frontier \
-  --location $LOCATION \
-  --sku-tier Standard
-
-# Add public IP
-az network public-ip create \
-  --resource-group $RG \
-  --name pip-fw \
-  --sku Standard
-
-az network firewall ip-config create \
-  --firewall-name fw-frontier \
-  --resource-group $RG \
-  --name fw-config \
-  --public-ip-address pip-fw \
-  --vnet-name vnet-frontier
-
-FW_PRIVATE_IP=$(az network firewall show \
-  --resource-group $RG \
-  --name fw-frontier \
-  --query "ipConfigurations[0].privateIPAddress" -o tsv)
-```
-
-Add AKS required FQDN rules:
-
-```bash
-az network firewall application-rule create \
-  --resource-group $RG \
-  --firewall-name fw-frontier \
-  --collection-name aks-required \
-  --priority 100 \
-  --action Allow \
-  --name aks-fqdns \
-  --source-addresses "*" \
-  --protocols Https=443 \
-  --target-fqdns \
-    "*.hcp.${LOCATION}.azmk8s.io" \
-    "mcr.microsoft.com" \
-    "*.data.mcr.microsoft.com" \
-    "management.azure.com" \
-    "login.microsoftonline.com" \
-    "packages.microsoft.com" \
-    "acs-mirror.azureedge.net"
-```
-
-Create a UDR to route AKS egress through the Firewall:
-
-```bash
-az network route-table create --resource-group $RG --name rt-aks
-az network route-table route create \
-  --resource-group $RG \
-  --route-table-name rt-aks \
-  --name default \
-  --address-prefix 0.0.0.0/0 \
-  --next-hop-type VirtualAppliance \
-  --next-hop-ip-address $FW_PRIVATE_IP
-
-az network vnet subnet update \
-  --resource-group $RG \
-  --vnet-name vnet-frontier \
-  --name snet-aks \
-  --route-table rt-aks
-```
-
-### Part 4: Advanced Cilium Network Policies (Layer 7)
-
-With Cilium, you can enforce L7 HTTP policies:
-
-```yaml
-# cilium-l7-policy.yaml
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
-  name: allow-api-get-only
-  namespace: fabtech
-spec:
-  endpointSelector:
-    matchLabels:
-      app: fabtech-api
-  ingress:
-  - fromEndpoints:
-    - matchLabels:
-        app: fabtech-web
-    toPorts:
-    - ports:
-      - port: "3001"
-        protocol: TCP
-      rules:
-        http:
-        - method: GET
-          path: /api/.*
-```
-
-```bash
-kubectl apply -f cilium-l7-policy.yaml
-
-# Test: POST should be blocked
-kubectl exec -n fabtech $WEB_POD -- \
-  curl -s -X POST http://fabtech-api:3001/api/speakers -d '{"name":"test"}'
-# Expected: 403 Access Denied
-```
+- Use Cilium layer 7 policy to restrict API traffic by HTTP behavior rather than only by port and source.
+- Compare Azure Firewall and NAT Gateway as egress strategies for this design.
+- Extend the private endpoint model to additional services used by the platform, such as Key Vault.
 
 ## Success Criteria
 
-1. A private AKS cluster exists with no public API server endpoint — show that `kubectl get nodes`
-   fails from outside the VNet but succeeds via `az aks command invoke`.
-2. Private endpoints are configured for ACR and Key Vault — show that DNS resolves to private IPs.
-3. Explain to your coach how a UDR + Azure Firewall prevents unrestricted egress from AKS nodes.
-4. *(Optional)* Show a Cilium L7 policy blocking POST requests while allowing GET.
+1. The AKS control plane is private and is not exposed through a public API server endpoint.
+2. Cluster and workload egress follow an intentional path through Azure Firewall or NAT Gateway.
+3. Azure Container Registry is reachable through a private endpoint for image pulls.
+4. The ingress controller uses an internal load balancer.
+5. You can explain to your coach how private access, controlled egress, and private registry connectivity improve the enterprise security posture.
 
 ## Learning Resources
 
-- [Private AKS cluster](https://learn.microsoft.com/azure/aks/private-cluster)
-- [Restrict egress traffic in AKS](https://learn.microsoft.com/azure/aks/limit-egress-traffic)
-- [Private endpoints for ACR](https://learn.microsoft.com/azure/container-registry/container-registry-private-link)
+- [Create a private AKS cluster](https://learn.microsoft.com/azure/aks/private-clusters)
+- [Establish network connectivity to a private AKS cluster](https://learn.microsoft.com/azure/aks/private-cluster-connect)
+- [AKS outbound types and egress design](https://learn.microsoft.com/azure/aks/egress-outboundtype)
+- [Use Azure Container Registry with Private Link](https://learn.microsoft.com/azure/container-registry/container-registry-private-link)
 - [Azure Private Link overview](https://learn.microsoft.com/azure/private-link/private-link-overview)
-- [Cilium network policies](https://learn.microsoft.com/azure/aks/azure-cni-powered-by-cilium)

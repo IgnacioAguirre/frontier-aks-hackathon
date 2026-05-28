@@ -4,150 +4,48 @@
 
 ## Introduction
 
-GitOps treats Git as the **single source of truth** for cluster state. Any change to the
-cluster must go through Git — no `kubectl apply` in production.
-
-In this challenge you will implement GitOps using **Flux v2** via the AKS `microsoft.flux`
-extension. Flux v2 is the only supported GitOps tool on AKS — Flux v1 is end-of-life.
-
-> **Flux v1 is retired.** `fluxctl`, `HelmRelease` v1 CRDs, and the `flux-get-started` repository
-> no longer work. Use `flux` CLI v2 and `az k8s-configuration flux`.
+GitOps turns your Git repository into the source of truth for cluster state. In this challenge you will connect AKS to a repository, let Flux v2 reconcile the desired state, and prove that changes flow through Git instead of direct cluster edits.
 
 ## Description
 
-### Part 1: Fork the GitOps Repository
+- Create or repurpose a Git repository to act as the fleet repository for your AKS workload definitions.
+- Connect your AKS cluster to that repository by enabling the Flux v2 extension and creating a Flux configuration.
+- Store the application release definition for FabTech in Git, including the Helm-based deployment settings that represent the desired state.
+- Verify that Flux reconciles the repository contents into the cluster and keeps the deployed state aligned with Git.
+- Make an application change in Git, such as updating an image tag or replica setting, and use the Git history as the change record.
+- Demonstrate drift detection by removing or changing a deployed resource outside Git and confirming that Flux restores the declared state.
+- Use a pull request to represent progressive delivery of an application update before it reaches the cluster.
 
-1. Fork the sample GitOps repository to your GitHub account:
-   `https://github.com/Azure-Samples/gitops-flux2-kustomize-helm-mt`
+## Hints
 
-   Or create your own repo with this structure:
-   ```
-   clusters/
-     dev/
-       kustomization.yaml
-     prod/
-       kustomization.yaml
-   apps/
-     base/
-       fabtech-api/
-         deployment.yaml
-         service.yaml
-         kustomization.yaml
-     overlays/
-       dev/
-         kustomization.yaml   # patch: replicas=1
-       prod/
-         kustomization.yaml   # patch: replicas=3
-   ```
+- Look for the AKS Flux extension and Flux configuration resources in Azure.
+- Think in terms of source repository, kustomization or Helm release, and reconciliation status.
+- The cluster should show evidence that Git is driving the deployment, not ad hoc runtime changes.
+- A pull request is the right place to review image tag updates before merge.
 
-2. Create a **Personal Access Token (PAT)** with `repo` scope on GitHub (or use a deploy key).
+## Notes
 
-### Part 2: Enable the Flux Extension on AKS
+- NOTE: Flux v1 is retired. This challenge is only about Flux v2.
+- NOTE: Do not store application secrets in the GitOps repository. Continue using secure secret management patterns from earlier challenges.
+- NOTE: Reconciliation can take a short time. Validate the observed state after Flux has had time to process the latest commit.
 
-```bash
-RG=rg-frontier-aks
-CLUSTER_NAME=aks-frontier
+## Optional Advanced
 
-# Install the Flux extension
-az k8s-extension create \
-  --cluster-type managedClusters \
-  --cluster-name $CLUSTER_NAME \
-  --resource-group $RG \
-  --name flux \
-  --extension-type microsoft.flux
-
-# Verify
-kubectl get pods -n flux-system
-```
-
-### Part 3: Create a Flux Configuration
-
-```bash
-GITHUB_USER=<your-github-username>
-GITHUB_PAT=<your-github-pat>
-REPO_URL=https://github.com/$GITHUB_USER/your-gitops-repo
-
-# Create the GitOps configuration pointing to the dev environment
-az k8s-configuration flux create \
-  --cluster-type managedClusters \
-  --cluster-name $CLUSTER_NAME \
-  --resource-group $RG \
-  --name fabtech-gitops \
-  --namespace flux-system \
-  --scope cluster \
-  --url $REPO_URL \
-  --branch main \
-  --https-user $GITHUB_USER \
-  --https-key $GITHUB_PAT \
-  --kustomization name=dev path=./clusters/dev prune=true
-```
-
-Verify the configuration is syncing:
-
-```bash
-az k8s-configuration flux show \
-  --cluster-type managedClusters \
-  --cluster-name $CLUSTER_NAME \
-  --resource-group $RG \
-  --name fabtech-gitops
-
-kubectl get gitrepository -n flux-system
-kubectl get kustomization -n flux-system
-```
-
-### Part 4: Make a Change via Git (No kubectl apply!)
-
-1. Edit a file in your Git repository — for example, increase the replica count in
-   `apps/overlays/dev/kustomization.yaml`.
-2. Commit and push to `main`.
-3. Watch Flux detect and apply the change:
-
-```bash
-# Force immediate reconciliation (optional — Flux polls every minute by default)
-flux reconcile source git flux-system --namespace flux-system
-
-# Watch kustomization status
-kubectl get kustomization -n flux-system -w
-
-# Confirm the deployment was updated
-kubectl get deployment fabtech-api -n fabtech
-```
-
-> **Tip:** In Flux v2 the equivalent of `fluxctl sync` is:
-> `flux reconcile source git <source-name>`
-
-### Part 5: Drift Detection
-
-Manually change a resource with `kubectl` (simulating unauthorized drift):
-
-```bash
-kubectl scale deployment fabtech-api --replicas=99 -n fabtech
-```
-
-Wait for the next Flux reconciliation (or force it). Observe Flux reverting the change back
-to the Git-declared state.
-
-### Part 6: Secrets via Key Vault (No Secrets in Git!)
-
-Use the `secretRef` in your Flux `GitRepository` source if your repo is private. For
-application secrets, continue using the **Secrets Store CSI driver** from Challenge 04 —
-never commit secrets to Git.
-
-For encrypting secrets in Git, consider **Sealed Secrets** (Bitnami) or **SOPS**.
+- Create separate staging and production environments in the repository with distinct overlays or release values.
+- Show how promotion to production happens through Git rather than by reconfiguring the cluster directly.
+- Add approval expectations for production pull requests to reinforce change control.
 
 ## Success Criteria
 
-1. The `microsoft.flux` extension is installed and Flux controllers are running in `flux-system`.
-2. A `GitConfiguration` exists linking the cluster to your Git repo.
-3. Show that a commit to the Git repo (e.g., replica count change) is automatically applied
-   to the cluster within 2 minutes — **without running `kubectl apply`**.
-4. Demonstrate drift detection: manually change a resource and show Flux reverting it.
-5. Explain to your coach why you should **never commit secrets** to a GitOps repository.
+1. A Git repository is connected to the AKS cluster through a Flux v2 configuration.
+2. The FabTech release definition is stored in Git and is reconciled into the cluster.
+3. A committed change in Git results in a visible deployment change in AKS.
+4. A manual drift event is corrected automatically by Flux.
+5. You can explain to your coach why GitOps improves auditability, consistency, and recovery.
 
 ## Learning Resources
 
-- [GitOps with Flux v2 on AKS](https://learn.microsoft.com/azure/aks/gitops-flux-v2)
-- [Flux v2 documentation](https://fluxcd.io/flux/)
-- [AKS Flux extension configuration](https://learn.microsoft.com/azure/azure-arc/kubernetes/tutorial-use-gitops-flux2)
-- [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)
-- [SOPS — Secrets OPerationS](https://github.com/getsops/sops)
+- [Tutorial: Deploy applications by using GitOps with Flux v2](https://learn.microsoft.com/azure/azure-arc/kubernetes/tutorial-use-gitops-flux2)
+- [Application deployments with GitOps and Flux v2](https://learn.microsoft.com/azure/azure-arc/kubernetes/conceptual-gitops-flux2)
+- [GitOps and Flux v2 supported parameters](https://learn.microsoft.com/azure/azure-arc/kubernetes/gitops-flux2-parameters)
+- [Monitor GitOps with Flux v2](https://learn.microsoft.com/azure/azure-arc/kubernetes/monitor-gitops-flux-2)
