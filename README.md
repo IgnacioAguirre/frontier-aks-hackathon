@@ -63,6 +63,11 @@ By the end of the hack you will have hands-on experience with:
 - Challenge 12: **[AKS Fleet Manager](Student/Challenge-12.md)**
   - Manage multiple clusters at scale with AKS Fleet Manager
 
+### Optional Extensions
+
+- Challenge 13: **[FinOps & Cost Management](Student/Challenge-13.md)**
+  - Apply FinOps practices to AKS: cost analysis, spot node pools, right-sizing, and budget alerts
+
 ### Optional AI Track
 
 - Challenge AI-01: **[AI on AKS — GPU Foundations](Student/Challenge-AI-01.md)**
@@ -95,6 +100,19 @@ By the end of the hack you will have hands-on experience with:
 
 Pre-built images are available on Docker Hub at `whatthehackmsft/web` and `whatthehackmsft/api`.
 Coaches can provide a `Resources.zip` with source code for Challenge 01.
+
+## Repository Contents
+
+```
+.
+├── README.md               # Hack description & table of contents
+├── Student/
+│   ├── Challenge-00.md     # through Challenge-13.md, Challenge-AI-01.md, Challenge-AI-02.md
+│   └── Resources/          # FabTechOps source code & manifests (provided as Resources.zip)
+└── Coach/
+    ├── README.md           # Coach's guide, agenda, coaching philosophy, and per-challenge notes
+    └── Solutions/          # Per-challenge solution guides (coaches only)
+```
 
 ## Contributors
 

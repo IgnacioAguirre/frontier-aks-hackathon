@@ -1,6 +1,6 @@
 # Challenge 12 — AKS Fleet Manager — Coach Solution
 
-[< Previous Solution](./Solution-11.md) | [Home](../../README.md) | [Next Solution >](./Solution-AI-01.md)
+[< Previous Solution](./Solution-11.md) | [Home](../../README.md) | [Next Solution (Optional) >](./Solution-13.md)
 
 ## Notes & Guidance
 

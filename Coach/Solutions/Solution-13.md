@@ -1,5 +1,7 @@
 # Solution 13 — FinOps & Cost Management
 
+[< Previous Solution](./Solution-12.md) | [Home](../../README.md) | [Next Solution (Optional) >](./Solution-AI-01.md)
+
 ## Overview
 
 This solution covers:

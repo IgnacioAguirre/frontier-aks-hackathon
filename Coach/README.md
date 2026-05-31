@@ -106,7 +106,34 @@ teams with strong Kubernetes experience.
 
 ---
 
-## Student Resources
+## Per-Challenge Coach Guide
+
+Use this table as your quick reference during the event. Each row links to the detailed
+solution file. The "When to intervene" column is a suggestion — trust your read of the room.
+
+| Ch | Title | Key Concepts to Introduce | Known Blockers & Hints | Est. Time | When to Intervene |
+|----|-------|--------------------------|------------------------|-----------|-------------------|
+| 00 | Prerequisites | Cloud-native toolchain; Azure resource providers | WSL1 vs WSL2; missing `kubelogin`; unregistered providers | 30 min | After 20 min if still installing tools |
+| 01 | Containers & ACR | Docker layering; ACR Tasks; managed identity auth | `az acr login` token expiry; ACR SKU must be ≥ Standard for Workload Identity | 45 min | If images fail to push after 30 min |
+| 02 | AKS Cluster Deployment | Azure CNI Overlay; Workload Identity; availability zones | Quota exceeded (request increase ahead of time); `--enable-oidc-issuer` required for WI | 45 min | If cluster stuck Provisioning > 20 min |
+| 03 | App Deployment & Helm | Helm chart structure; App Routing add-on; ingress DNS | Helm values file versus `--set`; App Routing requires DNS zone or nip.io | 60 min | After 45 min if app not accessible |
+| 04 | Workload Identity & Secrets | Federated credentials; UAMI; Secrets Store CSI | Namespace of service account must match federated credential; CSI driver pod must be Running | 60 min | After 40 min on federated credential config |
+| 05 | Observability | Managed Prometheus scrape config; Container Insights; Grafana | DCR must be linked to cluster; Grafana datasource must point to correct workspace | 60 min | After 40 min if no metrics appear |
+| 06 | Autoscaling | HPA vs KEDA; Karpenter / NAP; VPA | KEDA ScaledObject must reference correct deployment; Karpenter needs `--enable-keda` on cluster | 60 min | After 50 min if nodes not provisioning |
+| 07 | GitOps with Flux v2 | GitRepository; Kustomization; source vs reconcile | PAT token scopes; Flux needs write access for image automation; `flux reconcile` is your friend | 60 min | After 40 min if Kustomization stuck |
+| 08 | AKS Security | Entra RBAC; Azure Policy / OPA Gatekeeper; Defender | Policy takes up to 20 min to enforce; Defender plan must be enabled at subscription level | 60 min | After 45 min on policy assignment |
+| 09 | Istio Service Mesh | mTLS PeerAuthentication; VirtualService; sidecar injection | Namespace label `istio.io/rev` must match revision; wait for sidecar containers before testing | 60 min | After 40 min if traffic routing broken |
+| 10 | Persistent Storage | StorageClass; PVC dynamic provisioning; Azure Disk vs Files | RWX access mode requires Azure Files; disk PVCs are RWO only | 45 min | After 30 min if PVC stuck Pending |
+| 11 | Enterprise Networking | Private API server; Cilium network policies; NAT Gateway vs Firewall | Private cluster requires VNet peering or VPN to access API server; egress UDR + Firewall rules | 60 min | After 45 min on network policy |
+| 12 | AKS Fleet Manager | Fleet hub; member clusters; cluster propagation | Fleet requires separate hub cluster resource; propagation rules use label selectors | 45 min | After 30 min if member join fails |
+| 13 *(opt)* | FinOps & Cost Management | Cost Analysis add-on; spot toleration; resource requests | Cost Analysis requires Standard/Premium tier; spot nodes need both taint toleration and node selector | 45 min | After 30 min if spot pod not scheduling |
+| AI-01 *(opt)* | GPU Foundations | GPU node pool; NVIDIA device plugin; nvidia-smi | GPU quota must be requested 24–48 h in advance; device plugin DaemonSet must be Running | 60 min | If no GPU nodes after 20 min |
+| AI-02 *(opt)* | LLM Inference with KAITO | KAITO workspace CRD; model preset; inference endpoint | First workspace creation triggers GPU node provisioning (~10 min); model download can take 5–15 min | 60 min | After 40 min if workspace not Ready |
+
+> **Detailed solutions** (step-by-step commands, screenshots, and extended hints) are in the
+> [`Solutions/`](./Solutions/) folder. Share only CLI *output* with teams — not the commands.
+
+---
 
 Provide participants with a `Resources.zip` containing the FabTechOps source code
 (Dockerfiles, app code, and sample manifests). If teams run into build issues, the
