@@ -11,8 +11,7 @@
   create the `AcrPull` role assignment manually after cluster creation.
 - OIDC issuer is critical for Challenge 04 (Workload Identity). Verify it is enabled
   before teams move on.
-- Azure Linux 3.0 (`AzureLinux`) is the recommended OS SKU. **Do not use Ubuntu 18.04 or
-  Azure Linux 2.0** — security support ends November 2025.
+- Azure Linux 3.0 (`AzureLinux`) is the recommended OS SKU.
 
 ### Common Issues
 

@@ -10,7 +10,6 @@
   option (cheaper, less flexible).
 - `az aks command invoke` is the essential tool for running `kubectl` commands against a
   private cluster without a jumpbox or VPN. Coaches should demo this early.
-- **VM Availability Sets are retiring September 30, 2025.** Do not allow teams to create
   node pools with `--vm-set-type AvailabilitySet`. All new node pools must use VMSS.
 
 ### Common Issues

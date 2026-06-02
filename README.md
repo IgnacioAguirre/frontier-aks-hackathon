@@ -3,7 +3,7 @@
 ## Introduction
 
 This expert-level hack takes you through the full lifecycle of running a production-grade
-application on **Azure Kubernetes Service (AKS)** using current 2025 best practices.
+application on **Azure Kubernetes Service (AKS)** using current best practices.
 
 You will start from zero — containerizing an application, deploying an AKS cluster, and
 progressively hardening, scaling, observing, and operating it.
@@ -116,8 +116,11 @@ Coaches can provide a `Resources.zip` with source code for Challenge 01.
 
 ## Contributors
 
-- Carlos Mendible
-- (your name here — contributions welcome!)
+Thanks to everyone who has contributed!
+
+<a href="https://github.com/microsoft/frontier-aks-hackathon/graphs/contributors">
+  <img src="https://contributors-img.web.app/image?repo=microsoft/frontier-aks-hackathon" />
+</a>
 
 ## Acknowledgements
 
