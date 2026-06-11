@@ -5,19 +5,16 @@ the hack challenges.
 
 ## How to Get These Resources
 
-Your coach will package the contents of this folder into a **`Resources.zip`** file
-and distribute it at the start of the event (via Microsoft Teams, email, or a shared
-drive). **Do not clone or browse this repository** — working from the zip keeps the
-focus on learning, not copy-pasting answers.
+The source code lives directly in this repository under the `src/` folder.
+Coaches can still package this folder into a **`Resources.zip`** file for distribution
+if preferred, but participants can also clone the repo and work from `Student/Resources/src/`.
 
 ## Contents
 
 | Folder / File | Used In | Description |
 |---------------|---------|-------------|
-| `FabTechOps/web/` | Challenge 01 | React frontend source code and Dockerfile |
-| `FabTechOps/api/` | Challenge 01 | Node.js REST API source code and Dockerfile |
-| `FabTechOps/manifests/` | Challenge 03–04 | Sample Kubernetes manifests and Helm chart skeleton |
-| `FabTechOps/gitops/` | Challenge 07 | Sample Flux `GitRepository` and `Kustomization` manifests |
+| `src/content-web/` | Challenge 01 | React frontend source code and Dockerfile |
+| `src/content-api/` | Challenge 01 | Node.js REST API source code and Dockerfile |
 
 ## Pre-built Images (Fallback)
 
