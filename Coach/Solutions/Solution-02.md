@@ -5,7 +5,7 @@
 ## Notes & Guidance
 
 - Teams should pick either **AKS Automatic** or **AKS Standard** — document both paths.
-- **Quota check first:** `Standard_D4ds_v5` requires D-series vCPU quota. If unavailable,
+- **Quota check first:** `Standard_D2s_v3` requires D-series vCPU quota. If unavailable,
   `Standard_D2ds_v5` (2 vCPU) is a viable substitute.
 - **`--attach-acr` requires Owner role.** If the team only has Contributor, they must
   create the `AcrPull` role assignment manually after cluster creation.
@@ -30,7 +30,7 @@
 
 ```bash
 RG=rg-frontier-aks
-LOCATION=eastus
+LOCATION=swedencentral
 CLUSTER_NAME=aks-frontier
 ACR_NAME=<ACR_NAME_FROM_CHALLENGE_01>
 
@@ -49,7 +49,7 @@ az aks create \
   --node-count 3 \
   --zones 1 2 3 \
   --os-sku AzureLinux \
-  --node-vm-size Standard_D4ds_v5 \
+  --node-vm-size Standard_D2s_v3 \
   --attach-acr $ACR_NAME \
   --auto-upgrade-channel stable \
   --node-os-upgrade-channel NodeImage \
@@ -61,7 +61,7 @@ az aks nodepool add \
   --cluster-name $CLUSTER_NAME \
   --name apppool \
   --node-count 2 \
-  --node-vm-size Standard_D4ds_v5 \
+  --node-vm-size Standard_D2s_v3 \
   --os-sku AzureLinux \
   --zones 1 2 3 \
   --mode User

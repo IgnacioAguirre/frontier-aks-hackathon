@@ -13,8 +13,9 @@ modern Gateway API-based traffic routing approaches AKS supports today:
 
 - Enable the **App Routing add-on** on your cluster if the
   `webapprouting.kubernetes.azure.com` `GatewayClass` is not already available.
-- Deploy a **database** for the FabTechOps application. You may use Azure Database for
-  PostgreSQL Flexible Server (recommended) or an in-cluster PostgreSQL deployment for development.
+- Deploy an **in-cluster PostgreSQL database** for the FabTechOps application using the
+  [Bitnami PostgreSQL Helm chart](https://artifacthub.io/packages/helm/bitnami/postgresql).
+  Deploy it into the same `fabtech` namespace as the application.
 - Package the FabTechOps **API** and **Web** components as a **Helm chart** and deploy them
   to a dedicated namespace in your cluster.
   - The configuration should support changing the image tag and replica count without editing the templates.
@@ -41,13 +42,15 @@ modern Gateway API-based traffic routing approaches AKS supports today:
 
 ## Success Criteria
 
-1. Both `fabtech-api` and `fabtech-web` deployments have at least 2 pods running.
+1. An in-cluster **PostgreSQL** pod is running and ready in the `fabtech` namespace. Note the connection string — it will be used in Challenge 04.
+2. Both `fabtech-api` and `fabtech-web` deployments have at least 2 pods running.
 2. The application is accessible from a browser via the Gateway frontend.
 3. For Option A: A `Gateway` and `HTTPRoute` resource are present and the route status shows `Accepted`.
 4. For Option B: An `ApplicationLoadBalancer` resource exists and the AGC frontend resolves correctly.
 5. Show a successful `helm upgrade` and `helm rollback`.
 6. A `PodDisruptionBudget` exists for `fabtech-api` and `fabtech-web` with `minAvailable: 1`.
 7. Each Deployment uses `topologySpreadConstraints` to distribute pods across availability zones.
+8. The database connection string is available and will be stored in Key Vault in Challenge 04.
 
 ## Learning Resources
 
@@ -57,4 +60,4 @@ modern Gateway API-based traffic routing approaches AKS supports today:
 - [AGC — ALB Controller install](https://learn.microsoft.com/azure/application-gateway/for-containers/quickstart-deploy-application-gateway-for-containers-alb-controller)
 - [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/)
 - [Helm quickstart guide](https://helm.sh/docs/intro/quickstart/)
-- [Azure Database for PostgreSQL Flexible Server](https://learn.microsoft.com/azure/postgresql/flexible-server/overview)
+- [Bitnami PostgreSQL Helm chart](https://artifacthub.io/packages/helm/bitnami/postgresql)

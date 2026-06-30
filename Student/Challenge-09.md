@@ -29,7 +29,6 @@ A service mesh adds secure service-to-service communication, traffic control, an
 
 ## Optional Advanced
 
-- Add an AuthorizationPolicy that limits which workloads are allowed to call the API.
 - Extend the canary rollout into a full promotion plan from a small percentage to all traffic.
 - Compare the operational trade-offs between the AKS managed add-on and a fully self-managed Istio installation.
 

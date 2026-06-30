@@ -26,7 +26,7 @@ Enterprise AKS environments often require private management access, controlled 
 ## Notes
 
 - NOTE: VM Availability Sets for AKS node pools are retired. Use VMSS-based node pools.
-- NOTE: Private AKS clusters require a management path from within the network boundary or an approved remote access pattern.
+- NOTE: Private AKS clusters require a management path from within the network boundary or an approved remote access pattern. Use `az aks command invoke` to run `kubectl` commands without a VPN or jumpbox.
 - NOTE: Private endpoints for registry access are especially valuable when image supply chain control is part of the security posture.
 - ⚠️ **WARNING:** Converting an **existing public AKS cluster to a private cluster is not supported in-place.** You must create a new cluster with `--enable-private-cluster` from the start. Plan your private cluster strategy before initial provisioning.
 

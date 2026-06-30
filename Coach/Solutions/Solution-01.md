@@ -23,7 +23,7 @@
 
 ```bash
 RG=rg-frontier-aks
-LOCATION=eastus
+LOCATION=swedencentral
 ACR_NAME=acrfrontier$RANDOM
 
 # Create resource group and ACR

@@ -27,7 +27,7 @@
 
 ```bash
 RG=rg-frontier-aks
-LOCATION=eastus
+LOCATION=swedencentral
 KV_NAME=kv-frontier-$RANDOM
 
 az keyvault create \
@@ -36,11 +36,11 @@ az keyvault create \
   --location $LOCATION \
   --enable-rbac-authorization true
 
-# Store the secret
+# Store the secret (use the in-cluster connection string from Challenge 03)
 az keyvault secret set \
   --vault-name $KV_NAME \
   --name "db-connection-string" \
-  --value "postgresql://fabadmin:<DB_PASS>@<DB_HOST>:5432/fabtech?sslmode=require"
+  --value "postgresql://fabadmin:<DB_PASS>@fabtech-pg-postgresql.fabtech.svc.cluster.local:5432/fabtech"
 
 echo "Key Vault: $KV_NAME"
 ```
@@ -54,9 +54,9 @@ SA_NAME=fabtech-api-sa
 MI_NAME=mi-fabtech-api
 
 # Create the identity
-MI=$(az identity create --resource-group $RG --name $MI_NAME)
-MI_CLIENT_ID=$(echo $MI | jq -r '.clientId')
-MI_OBJECT_ID=$(echo $MI | jq -r '.principalId')
+az identity create --resource-group $RG --name $MI_NAME
+MI_CLIENT_ID=$(az identity show --resource-group $RG --name $MI_NAME --query clientId -o tsv)
+MI_OBJECT_ID=$(az identity show --resource-group $RG --name $MI_NAME --query principalId -o tsv)
 
 # Grant Key Vault Secrets User role
 KV_ID=$(az keyvault show --name $KV_NAME --query id -o tsv)
@@ -102,7 +102,7 @@ az aks enable-addons \
 
 # Verify the add-on pods are running
 kubectl get pods -n kube-system -l app=secrets-store-csi-driver
-kubectl get pods -n kube-system -l app=csi-secrets-store-provider-azure
+kubectl get pods -n kube-system -l app=secrets-store-provider-azure
 ```
 
 `SecretProviderClass` manifest:
@@ -168,7 +168,7 @@ in the pod spec itself):
       - name: api
         securityContext:
           runAsNonRoot: true
-          runAsUser: 1000
+          runAsUser: 100
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           capabilities:

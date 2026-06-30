@@ -68,7 +68,7 @@ az role assignment list --assignee $(az account show --query user.name -o tsv) \
 ### GPU Quota Check (AI Track)
 
 ```bash
-az vm list-usage --location eastus \
+az vm list-usage --location swedencentral \
   --query "[?contains(name.value,'NC')]" \
   -o table
 # If quota = 0, request an increase for the exact GPU family shown in the Portal/CLI.

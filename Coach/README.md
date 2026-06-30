@@ -35,7 +35,7 @@ requirements, and a suggested agenda.
 | Resource | Requirement |
 |----------|-------------|
 | **Role** | Owner on the subscription (required for `--attach-acr`, RBAC assignments) |
-| **Region** | `eastus` or `eastus2` recommended (best service availability) |
+| **Region** | `swedencentral` recommended (best service availability) |
 | **vCPU quota** | ~16 Standard D-series vCPUs per team (D4ds_v5 × 4 nodes minimum) |
 | **GPU quota** *(AI track)* | `Standard_NC4as_T4_v3` — must request 24–48 hours in advance |
 | **Resource providers** | `Microsoft.ContainerService`, `Microsoft.Monitor`, `Microsoft.Dashboard`, `Microsoft.KubernetesConfiguration`, `Microsoft.ContainerRegistry` |

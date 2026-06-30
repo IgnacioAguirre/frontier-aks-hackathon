@@ -8,7 +8,7 @@ GitOps turns your Git repository into the source of truth for cluster state. In 
 
 ## Description
 
-- Create or repurpose a Git repository to act as the fleet repository for your AKS workload definitions.
+- Use your **fork of this hackathon repository** as the fleet repository for your AKS workload definitions — no new repository is needed. Create a `gitops/clusters/production/` directory within your fork to hold the Flux manifests.
 - Connect your AKS cluster to that repository by enabling the Flux v2 extension and creating a Flux configuration.
 - Store the application release definition for FabTech in Git, including the Helm-based deployment settings that represent the desired state.
 - Verify that Flux reconciles the repository contents into the cluster and keeps the deployed state aligned with Git.
@@ -28,12 +28,6 @@ GitOps turns your Git repository into the source of truth for cluster state. In 
 - NOTE: Use the `microsoft.flux` AKS extension (`az k8s-configuration flux`) — not a manual Flux bootstrap.
 - NOTE: Do not store application secrets in the GitOps repository. Continue using secure secret management patterns from earlier challenges.
 - NOTE: Reconciliation can take a short time. Validate the observed state after Flux has had time to process the latest commit.
-
-## Optional Advanced
-
-- Create separate staging and production environments in the repository with distinct overlays or release values.
-- Show how promotion to production happens through Git rather than by reconfiguring the cluster directly.
-- Add approval expectations for production pull requests to reinforce change control.
 
 ## Success Criteria
 

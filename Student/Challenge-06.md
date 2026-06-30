@@ -28,6 +28,9 @@ understanding when and why to use it.
     Challenge 02 with `--node-provisioning-mode Auto`, `--network-dataplane cilium`, and
     `--network-plugin-mode overlay`. These prerequisites cannot be added later.
   - Verify with: `az aks show --query agentPoolProfiles[].nodeProvisioningMode`
+  - Create a `NodePool` resource and **trigger provisioning** by deploying a workload whose
+    CPU requests exceed what fits on the existing nodes. Observe a new node appear, then
+    delete the workload and watch Karpenter consolidate the idle node away.
 - *(Optional)* Deploy a **Vertical Pod Autoscaler (VPA)** in recommendation mode and
   review the suggested CPU/memory requests for the API deployment.
 
@@ -42,7 +45,10 @@ understanding when and why to use it.
 2. **Part 2 — Event-driven autoscaling:** Remove the HPA, enable the KEDA add-on, and replace it
    with a `ScaledObject` for `fabtech-api` that scales to **0 replicas** when the queue is empty
    and scales up when messages are queued.
-3. Explain to your coach: when would you use **HPA**, **KEDA**, **VPA**, and **Karpenter**? What
+3. **Part 3 — Node Auto Provisioning:** Apply a `NodePool`, trigger NAP by scaling up a
+   CPU-heavy workload, show a new node appearing with `kubectl get nodes -w` and
+   `kubectl get nodeclaims`, then delete the workload and show the node being consolidated away.
+4. Explain to your coach: when would you use **HPA**, **KEDA**, **VPA**, and **Karpenter**? What
    problem does each solve?
 
 ## Learning Resources

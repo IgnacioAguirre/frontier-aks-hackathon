@@ -22,6 +22,9 @@
   `az role assignment create --role "Grafana Admin" --assignee <your-email> --scope <grafana-id>`
 - **`ama-metrics` pods CrashLooping:** Usually a permissions issue between the cluster and
   the Azure Monitor workspace. Check the managed identity permissions.
+- **`ama-metrics-operator-targets` CrashLoopBackOff:** This is **expected
+  behaviour** — the operator retries until the scrape target CRDs are fully registered. Wait
+  ~2 minutes; it will settle on its own. Only escalate if it does not stabilize after 5 minutes.
 
 ## Solution
 
@@ -31,7 +34,7 @@
 RG=rg-frontier-aks
 CLUSTER_NAME=aks-frontier
 MONITOR_WS=amw-frontier
-LOCATION=eastus
+LOCATION=swedencentral
 
 # Create Azure Monitor workspace (Managed Prometheus store)
 az monitor account create \
@@ -59,6 +62,9 @@ kubectl get pods -n kube-system | grep ama-metrics
 
 ```bash
 GRAFANA_NAME=grafana-frontier
+
+# az grafana commands require the amg extension
+az extension add --name amg --upgrade
 
 az grafana create \
   --name $GRAFANA_NAME \
@@ -146,10 +152,17 @@ sum(kube_pod_container_status_restarts_total) by (namespace, pod)
 ### Part 6: Azure Monitor Alert Rule + Action Group
 
 Alerts close the loop from observation to action. Create an Action Group and a
-Prometheus-based alert rule for high pod restart rates:
+Prometheus-based alert rule for high pod restart rates.
+
+> **Note:** Prometheus alert rules require the `alertsmanagement` CLI extension.
+> `az monitor alert-processing-rule` is a different concept (it routes/suppresses
+> already-fired alerts) — do not use it here.
 
 ```bash
 ACTION_GROUP_NAME=ag-aks-ops
+
+# Install required extension
+az extension add --name alertsmanagement --upgrade
 
 # Create an email Action Group
 az monitor action-group create \
@@ -163,44 +176,20 @@ ACTION_GROUP_ID=$(az monitor action-group show \
   --name $ACTION_GROUP_NAME \
   --query id -o tsv)
 
-# Do NOT use `az monitor alert-processing-rule create` here:
-# alert processing rules only route/suppress alerts that already fired, and their
-# scopes are subscription/resource-group level scopes, not an Azure Monitor workspace.
-#
-# Correct options for defining the actual Prometheus alert condition:
-# 1) Use the `PrometheusRuleGroup` ARM resource shown just below in this section.
-# 2) Or create the same ARM resource from the CLI with
-#    `az monitor alert-prometheus-rule-group create`
-#    (in some CLI versions/extensions this is `az alerts-management prometheus-rule-group create`).
-#
-# Reference only: the YAML below represents an ARM resource type, so deploy it via
-# ARM/Bicep or the Prometheus rule group CLI command above — not with `kubectl apply`.
-# Condition: container_restart_rate > 5 in last 5 min triggers the action group
-#
-# Equivalent CLI shape:
-# az monitor alert-prometheus-rule-group create \
-#   --resource-group $RG \
-#   --name aks-pod-restart-alerts \
-#   --location $LOCATION \
-#   --cluster-name $CLUSTER_NAME \
-#   --scopes $MONITOR_WS_ID \
-#   --rules '<json-rules-payload>'
-cat <<EOF
-apiVersion: azuremonitor.microsoft.com/v1
-kind: PrometheusRuleGroup
-metadata:
-  name: aks-pod-restart-alerts
-  namespace: default
-spec:
-  clusterName: $CLUSTER_NAME
-  rules:
-  - alert: HighPodRestartRate
-    expr: |
-      increase(kube_pod_container_status_restarts_total[5m]) > 5
-    for: 2m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Pod {{ \$labels.pod }} is restarting frequently"
-EOF
+# Create Prometheus rule group — fires when any pod restarts >5 times in 5 min
+az alerts-management prometheus-rule-group create \
+  --resource-group $RG \
+  --name aks-pod-restart-alerts \
+  --location $LOCATION \
+  --cluster-name $CLUSTER_NAME \
+  --scopes $MONITOR_WS_ID \
+  --rules "[{
+    \"alert\": \"HighPodRestartRate\",
+    \"expression\": \"increase(kube_pod_container_status_restarts_total[5m]) > 5\",
+    \"for\": \"PT2M\",
+    \"severity\": 3,
+    \"actions\": [{\"actionGroupId\": \"$ACTION_GROUP_ID\"}],
+    \"labels\": {\"severity\": \"warning\"},
+    \"annotations\": {\"summary\": \"Pod restarting frequently\"}
+  }]"
 ```

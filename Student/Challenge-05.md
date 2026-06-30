@@ -19,6 +19,7 @@ managed services.
   - **Hint:** Look for `az aks update --enable-azure-monitor-metrics` to link a cluster to an Azure Monitor workspace.
 - Deploy **Azure Managed Grafana** and link it to the Prometheus workspace.
   - Explore the pre-built Kubernetes dashboards that appear automatically.
+  - **Hint:** The `az grafana` commands require the `amg` CLI extension.
 - Enable **Container Insights** log collection to a Log Analytics workspace.
 - Use **KQL queries** in Log Analytics to query container logs from the `fabtech` namespace.
   > **Hint:** Use the `ContainerLogV2` table (current schema with structured fields like
@@ -31,6 +32,8 @@ managed services.
 
 > **Hint:** After enabling Managed Prometheus on the cluster, the `ama-metrics-*` pods
 > in `kube-system` are your confirmation that scraping is active.
+> `ama-metrics-operator-targets` may crash 2–3 times before stabilizing;
+> wait ~2 minutes before concluding something is broken.
 
 ## Success Criteria
 
@@ -43,6 +46,7 @@ managed services.
    **logs** (Container Insights/Log Analytics) and when you would use each.
 5. **(Optional)** Create an **Azure Monitor Action Group** (email) and attach an alert rule
    that fires when any pod restarts more than 5 times in 5 minutes.
+   - **Hint:** Prometheus-based alert rules use the `alertsmanagement` CLI extension.
 
 ## Learning Resources
 

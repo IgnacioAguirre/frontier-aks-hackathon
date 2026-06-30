@@ -90,14 +90,20 @@ az servicebus queue create \
 
 ### KEDA Workload Identity Auth for Service Bus
 
+> **How KEDA WI works:** With `provider: azure-workload` in the `TriggerAuthentication`,
+> the KEDA operator pod (`kube-system:keda-operator`) is the actual token requestor — it
+> fetches queue metrics on behalf of the scaler. The federated credential must therefore
+> target `kube-system:keda-operator`, not an app-namespace SA.
+
 ```bash
 MI_NAME=mi-keda-servicebus
 NAMESPACE=fabtech
-KEDA_SA_NAME=fabtech-keda-sa
-MI=$(az identity create --resource-group $RG --name $MI_NAME)
-MI_CLIENT_ID=$(echo $MI | jq -r '.clientId')
-MI_OBJECT_ID=$(echo $MI | jq -r '.principalId')
 
+az identity create --resource-group $RG --name $MI_NAME
+MI_CLIENT_ID=$(az identity show --resource-group $RG --name $MI_NAME --query clientId -o tsv)
+MI_OBJECT_ID=$(az identity show --resource-group $RG --name $MI_NAME --query principalId -o tsv)
+
+# Grant Service Bus Data Receiver to the identity
 SB_ID=$(az servicebus namespace show --resource-group $RG --name $SB_NS --query id -o tsv)
 az role assignment create \
   --role "Azure Service Bus Data Receiver" \
@@ -105,39 +111,33 @@ az role assignment create \
   --assignee-principal-type ServicePrincipal \
   --scope $SB_ID
 
-# Dedicated app-namespace ServiceAccount for KEDA trigger auth
-kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-kubectl create serviceaccount $KEDA_SA_NAME \
-  --namespace $NAMESPACE \
-  --dry-run=client -o yaml | kubectl apply -f -
-kubectl annotate serviceaccount $KEDA_SA_NAME \
-  --namespace $NAMESPACE \
-  "azure.workload.identity/client-id=$MI_CLIENT_ID" --overwrite
-
-# Federated credential for the app-namespace ServiceAccount used by KEDA
+# Get OIDC issuer
 OIDC_ISSUER=$(az aks show --resource-group $RG --name $CLUSTER_NAME \
   --query "oidcIssuerProfile.issuerUrl" -o tsv)
 
+# Federated credential must target kube-system:keda-operator
+# (the AKS managed KEDA operator pod is what actually requests the token)
 az identity federated-credential create \
-  --name fc-keda-servicebus \
+  --name fc-keda-operator \
   --identity-name $MI_NAME \
   --resource-group $RG \
   --issuer $OIDC_ISSUER \
-  --subject "system:serviceaccount:${NAMESPACE}:${KEDA_SA_NAME}" \
+  --subject "system:serviceaccount:kube-system:keda-operator" \
   --audience api://AzureADTokenExchange
+
+# Annotate the keda-operator ServiceAccount with the MI client ID
+kubectl annotate serviceaccount keda-operator \
+  --namespace kube-system \
+  "azure.workload.identity/client-id=$MI_CLIENT_ID" --overwrite
+
+# Restart the operator so the WI webhook injects the projected token
+kubectl rollout restart deployment/keda-operator -n kube-system
+kubectl rollout status deployment/keda-operator -n kube-system --timeout=60s
 ```
 
 KEDA `TriggerAuthentication` and `ScaledObject`:
 
 ```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: fabtech-keda-sa
-  namespace: fabtech
-  annotations:
-    azure.workload.identity/client-id: "<MI_CLIENT_ID>"
----
 apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
@@ -145,7 +145,7 @@ metadata:
   namespace: fabtech
 spec:
   podIdentity:
-    provider: azure-workload-identity
+    provider: azure-workload   # NOT "azure-workload-identity"
     identityId: "<MI_CLIENT_ID>"
 ---
 apiVersion: keda.sh/v1alpha1
@@ -170,51 +170,49 @@ spec:
       name: fabtech-sb-auth
 ```
 
-Apply the ServiceAccount, `TriggerAuthentication`, and `ScaledObject` in the `fabtech`
-namespace. The `TriggerAuthentication` should use the app-namespace identity above, not
-`kube-system:keda-operator`.
-
-Optional fallback if you must annotate the managed KEDA operator ServiceAccount instead:
-
-```bash
-kubectl annotate serviceaccount keda-operator \
-  --namespace kube-system \
-  "azure.workload.identity/client-id=$MI_CLIENT_ID" --overwrite
-
-# Restart so the workload identity webhook injects the env vars into the operator pods
-kubectl rollout restart deployment/keda-operator -n kube-system
-```
-
 Send test messages to trigger scale-up:
 
+> **Easiest option:** Azure Portal → your Service Bus namespace → `fabtech-jobs` queue →
+> **Service Bus Explorer** → Send → send 20 messages.
+
+Alternative (Python stdlib, no pip required):
+
 ```bash
-cat <<'PY' > send_test_messages.py
-import os
-from azure.servicebus import ServiceBusClient, ServiceBusMessage
-
-connection_str = os.environ["SERVICE_BUS_CONNECTION_STRING"]
-queue_name = "fabtech-jobs"
-
-with ServiceBusClient.from_connection_string(connection_str) as client:
-    with client.get_queue_sender(queue_name) as sender:
-        for i in range(20):
-            sender.send_messages(ServiceBusMessage(f"job-{i}"))
-        print(f"Sent 20 messages to {queue_name}")
-PY
-
-pip install azure-servicebus
 SERVICE_BUS_CONNECTION_STRING=$(az servicebus namespace authorization-rule keys list \
   --resource-group $RG \
   --namespace-name $SB_NS \
   --name RootManageSharedAccessKey \
   --query primaryConnectionString -o tsv)
-python send_test_messages.py
+
+python3 - << PYEOF
+import urllib.request, urllib.parse, hmac, hashlib, base64, time
+
+conn = """$SERVICE_BUS_CONNECTION_STRING"""
+parts = dict(p.split("=", 1) for p in conn.split(";") if "=" in p)
+sb_host = parts["Endpoint"].replace("sb://", "").rstrip("/")
+key_name = parts["SharedAccessKeyName"]
+key = parts["SharedAccessKey"]
+queue = "fabtech-jobs"
+
+def sas_token(uri, key_name, key, ttl=300):
+    expiry = int(time.time()) + ttl
+    string_to_sign = urllib.parse.quote_plus(uri) + "\n" + str(expiry)
+    sig = base64.b64encode(hmac.new(key.encode(), string_to_sign.encode(), hashlib.sha256).digest()).decode()
+    return "SharedAccessSignature sr={}&sig={}&se={}&skn={}".format(
+        urllib.parse.quote_plus(uri), urllib.parse.quote_plus(sig), expiry, key_name)
+
+url = "https://{}/{}/messages".format(sb_host, queue)
+token = sas_token("https://{}/{}".format(sb_host, queue), key_name, key)
+for i in range(20):
+    req = urllib.request.Request(url, data="job-{}".format(i).encode(), method="POST")
+    req.add_header("Authorization", token)
+    req.add_header("Content-Type", "application/json")
+    urllib.request.urlopen(req)
+print("Sent 20 messages")
+PYEOF
 
 kubectl get pods -n fabtech -w
 ```
-
-Alternatively, use Service Bus Explorer in the Azure Portal → your namespace → Queue →
-Service Bus Explorer → Send messages.
 
 ### Part 3: Node Auto Provisioning (Karpenter)
 
@@ -246,10 +244,9 @@ NAP later — recreate the cluster with the correct Challenge 02 configuration i
 apiVersion: karpenter.azure.com/v1beta1
 kind: AKSNodeClass
 metadata:
-  name: default
+  name: general
 spec:
-  osSKU: AzureLinux
----
+  imageFamily: AzureLinux
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
@@ -258,7 +255,9 @@ spec:
   template:
     spec:
       nodeClassRef:
-        name: default
+        group: karpenter.azure.com
+        kind: AKSNodeClass
+        name: general
       requirements:
         - key: "karpenter.sh/capacity-type"
           operator: In
@@ -275,3 +274,33 @@ spec:
     budgets:
     - nodes: "20%"   # At most 20% of nodes disrupted at once
 ```
+
+### Verify NAP — Trigger Provisioning and Consolidation
+
+Apply the `NodePool`, then force Karpenter to provision new nodes by deploying `pause`
+containers that each request 1 CPU — more than fits on the existing nodes:
+
+```bash
+kubectl apply -f nodepool.yaml
+kubectl get nodepool general   # wait for READY=True
+
+# Deploy inflate workload — each replica requests 1 CPU
+kubectl create deployment inflate \
+  --image=registry.k8s.io/pause:3.9 \
+  --replicas=20
+kubectl patch deployment inflate \
+  --patch '{"spec":{"template":{"spec":{"containers":[{"name":"pause","resources":{"requests":{"cpu":"1"}}}]}}}}'
+
+# Watch Karpenter provision new nodes (typically within 60 s)
+kubectl get nodes -w
+
+# Confirm Karpenter created NodeClaim(s)
+kubectl get nodeclaims
+
+# Clean up — Karpenter consolidates the now-idle nodes (consolidateAfter: 30s)
+kubectl delete deployment inflate
+kubectl get nodes -w   # watch the Karpenter nodes drain and disappear
+```
+
+> **Expected timeline:** new node visible in ~60 s after pods go Pending; node removed ~90 s
+> after the inflate deployment is deleted (30 s consolidation window + drain time).

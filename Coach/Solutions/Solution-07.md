@@ -20,21 +20,42 @@
 
 - **GitHub PAT permissions:** Token needs `repo` scope. Fine-grained tokens need
   Contents (read/write) and Metadata (read) on the target repo.
-- **Flux not picking up changes:** Check `flux get sources git` for errors. Often a
+- **Flux not picking up changes:** Check `flux get sources git -A` for errors. Often a
   credentials issue or wrong branch name.
 - **HelmRelease not reconciling:** Check `flux get helmreleases -A`. Common cause:
   the `HelmRepository` source is not Ready.
+- **`cross-namespace references are not allowed`:** The HelmRelease **must be in the same
+  namespace as the GitRepository** (`cluster-config`). Use `spec.targetNamespace: fabtech`
+  to deploy the Helm release into the app namespace. A HelmRelease in `fabtech` cannot
+  reference a GitRepository in `cluster-config`.
+- **Drift not remediated after deleting a resource:** Helm only upgrades when chart
+  version or values change. Add `spec.driftDetection.mode: enabled` to the HelmRelease
+  so Flux restores resources that are deleted outside of Git.
+- **Template changes not applied after git commit:** If only template files changed (not
+  `values`) and the chart `version` in `Chart.yaml` is unchanged, Helm considers the
+  release "in-sync" and skips the upgrade. Bump `Chart.yaml` version to trigger a re-render.
+- **`<ACR_NAME>` placeholder in HelmRelease:** Replace with the actual ACR login server
+  (`<acr-name>.azurecr.io`) before committing. Students can also use a Kustomize patch
+  to avoid hardcoding the ACR name in the shared repo.
 
 ## Solution
 
-### Part 1: Create Fleet Repository
+### Part 1: Prepare Fleet Repository
 
 ```bash
-# Using GitHub CLI
-gh repo create frontier-aks-fleet --private --add-readme
-git clone https://github.com/<your-org>/frontier-aks-fleet.git
-cd frontier-aks-fleet
-mkdir -p clusters/production apps/fabtech
+# No new repository needed — use the team's fork of this hackathon repo.
+# Clone the fork if not already local:
+git clone https://github.com/<your-github-username>/frontier_aks_hackathon.git
+cd frontier_aks_hackathon
+```
+
+Update the `gitops/clusters/production/fabtech-helmrelease.yaml` file with your ACR name and image tags. The HelmRelease should point to the images pushed in previous challenges.
+
+```bash
+# Commit and push the changes to your fork:
+git add gitops/clusters/production/fabtech-helmrelease.yaml
+git commit -m "Update HelmRelease with ACR image references"
+git push origin main
 ```
 
 ### Part 2: Bootstrap Flux v2 via AKS Extension
@@ -42,12 +63,13 @@ mkdir -p clusters/production apps/fabtech
 ```bash
 RG=rg-frontier-aks
 CLUSTER_NAME=aks-frontier
-REPO_URL=https://github.com/<your-org>/frontier-aks-fleet
+REPO_URL=https://github.com/<your-github-username>/frontier_aks_hackathon
 
-# Set credentials without exposing them in shell history
-# Use `read -rs` to prompt for the value silently, then pass via variable
-read -p "GitHub Username: " GITHUB_USERNAME && echo "Username set"
-read -sp "GitHub PAT: " GITHUB_PAT && echo && echo "PAT set"
+# Pull credentials directly from the active gh CLI session
+# Run `gh auth login` first if not already authenticated.
+# Ensure the session has 'repo' scope: `gh auth status`
+GITHUB_USERNAME=$(gh api user --jq '.login')
+GITHUB_PAT=$(gh auth token)
 
 # Create a Kubernetes secret from the environment variables
 kubectl create namespace cluster-config
@@ -67,7 +89,7 @@ az k8s-configuration flux create \
   --branch main \
   --https-user "$GITHUB_USERNAME" \
   --https-key "$GITHUB_PAT" \
-  --kustomization name=apps path=./clusters/production prune=true interval=1m
+  --kustomization name=apps path=./Coach/Solutions/Resources/gitops/clusters/production/fabtech-helmrelease.yaml prune=true interval=1m
 
 # Clear credentials from memory
 unset GITHUB_USERNAME GITHUB_PAT
@@ -78,49 +100,16 @@ flux get sources git
 flux get kustomizations
 ```
 
-### Part 3: Commit App Config to Git
+### Part 3: Reconcile and Verify
 
 ```bash
-cd frontier-aks-fleet
-mkdir -p charts
-helm create charts/chart
-# Commit the scaffolded chart (or replace it with your app chart) before applying the HelmRelease.
-```
+# Force reconcile
+flux reconcile source git cluster-config -n cluster-config
+flux reconcile kustomization cluster-config-apps -n cluster-config
 
-```yaml
-# clusters/production/fabtech-helmrelease.yaml
-apiVersion: helm.toolkit.fluxcd.io/v2
-kind: HelmRelease
-metadata:
-  name: fabtech
-  namespace: fabtech
-spec:
-  interval: 5m
-  chart:
-    spec:
-      chart: ./charts/chart
-      sourceRef:
-        kind: GitRepository
-        name: cluster-config
-        namespace: cluster-config
-  values:
-    api:
-      image:
-        tag: v1
-    web:
-      image:
-        tag: v1
-```
-
-```bash
-cd frontier-aks-fleet
-git add clusters/production/
-git commit -m "feat: add FabTechOps HelmRelease"
-git push
-
-# Force immediate reconcile
-flux reconcile source git cluster-config
-flux reconcile kustomization apps
+# Verify the HelmRelease is applied and the FabTech pods are running
+flux get helmreleases -A
+kubectl get pods -n fabtech
 ```
 
 ### Part 4: Drift Detection Demo
@@ -130,67 +119,7 @@ flux reconcile kustomization apps
 kubectl delete deployment fabtech-api -n fabtech
 
 # Wait or force reconcile
-flux reconcile kustomization apps --with-source
+flux reconcile helmrelease fabtech -n cluster-config --with-source
 kubectl get deployments -n fabtech
 # Should be restored
-```
-
-### Part 5: Progressive Delivery via Pull Request
-
-```bash
-# Create feature branch
-cd frontier-aks-fleet
-git checkout -b update-api-v2
-
-# Edit image tag from v1 to v2 in clusters/production/fabtech-helmrelease.yaml
-
-git add .
-git commit -m "chore: bump api image to v2"
-git push -u origin update-api-v2
-
-# Create and merge PR via GitHub CLI
-gh pr create --title "Bump API to v2" --body "" --base main
-gh pr merge --squash
-
-# Force reconcile and watch
-flux reconcile source git cluster-config
-flux get helmreleases -n fabtech -w
-kubectl rollout status deployment/fabtech-api -n fabtech
-```
-
-### Part 6 (Optional): Multi-Environment
-
-```yaml
-# clusters/staging/kustomization.yaml
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - ../production
-patches:
-  - target:
-      kind: HelmRelease
-      name: fabtech
-    patch: |
-      - op: replace
-        path: /spec/values/api/image/tag
-        value: v2-rc1
-```
-
-Flux `Kustomization` with dependency:
-
-```yaml
-# clusters/production-flux-kustomization.yaml
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
-metadata:
-  name: production
-spec:
-  dependsOn:
-    - name: staging
-  interval: 10m
-  path: ./clusters/production
-  prune: true
-  sourceRef:
-    kind: GitRepository
-    name: cluster-config
 ```

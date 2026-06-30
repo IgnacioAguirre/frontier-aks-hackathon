@@ -14,6 +14,9 @@ no static credentials in pods.
 
 ## Description
 
+> **Prerequisite:** This challenge requires a PostgreSQL database connection string. If you did not
+> deploy in-cluster PostgreSQL in Challenge 03, do so now using the Bitnami Helm chart before continuing.
+
 - Create an **Azure Key Vault** with RBAC authorization enabled and store the database
   connection string as a secret.
 - Create a **User-Assigned Managed Identity** in Azure and grant it `Key Vault Secrets User`

@@ -25,6 +25,22 @@
   storage class is used.
 - **Data lost after pod deletion:** Usually means the pod was using `emptyDir` instead of a
   PVC, or the PVC was deleted along with the pod (StatefulSet `--cascade=orphan` avoids this).
+- **`CreateContainerConfigError: couldn't find key password in Secret`:** The existing
+  `fabtech-db-secret` from Challenge 04 only contains `connectionString`, not `password`.
+  Either create a new secret or patch the existing one:
+  ```bash
+  kubectl patch secret fabtech-db-secret -n fabtech --type=json \
+    -p='[{"op":"add","path":"/data/password","value":"'$(echo -n $DB_PASS | base64 -w0)'"}]'
+  ```
+- **`Permission denied` creating `/var/lib/postgresql/data/pgdata`:** The official `postgres`
+  image runs as UID 999 but Azure Disk volumes are mounted with root ownership. Add
+  `securityContext.fsGroup: 999` at the **pod** level (not container level) so Kubernetes
+  `chown`s the volume on attach. Also set `PGDATA=/var/lib/postgresql/data/pgdata` env var
+  to avoid the "data directory is not empty" error on first init.
+- **`runAsUser: 100` breaks the postgres container:** The guide's security context uses
+  `runAsUser: 100` which is the `games` user — postgres requires UID 999. Use `runAsUser: 999`
+  for the postgres container. `readOnlyRootFilesystem: true` also must be omitted — PostgreSQL
+  writes to its data directory and `/tmp` at runtime.
 
 ## Solution
 
@@ -59,12 +75,16 @@ spec:
       labels:
         app: postgres
     spec:
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      securityContext:
+        fsGroup: 999        # chown volume to postgres group on attach
       containers:
       - name: postgres
         image: postgres:16
         securityContext:
           runAsNonRoot: true
-          runAsUser: 999
+          runAsUser: 999    # postgres UID — NOT 100
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]
@@ -78,6 +98,8 @@ spec:
               key: password
         - name: POSTGRES_DB
           value: fabtech
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata   # subdirectory avoids "not empty" init error
         ports:
         - containerPort: 5432
         volumeMounts:
@@ -170,8 +192,23 @@ containers:
 
 ### Part 4: Azure Backup for AKS (Optional)
 
+> **Coach Note:** The Azure Portal wizard is the most reliable way to complete this step end-to-end.
+> The CLI path for creating backup instances has schema bugs that make it error-prone (see Common Issues).
+> Use CLI for infrastructure (extension, vault, policy, roles) and the Portal for backup instance creation.
+
 ```bash
-# Enable Backup extension on the cluster
+# Step 1: Create a storage account for backup staging
+SA_NAME="stbackup$RANDOM"
+az storage account create \
+  --name $SA_NAME \
+  --resource-group $RG \
+  --location $LOCATION \
+  --sku Standard_LRS --kind StorageV2
+
+az storage container create \
+  --name backup --account-name $SA_NAME --auth-mode login
+
+# Step 2: Install the AKS Backup extension on the cluster
 az k8s-extension create \
   --name azure-aks-backup \
   --extension-type microsoft.dataprotection.kubernetes \
@@ -180,8 +217,76 @@ az k8s-extension create \
   --cluster-name $CLUSTER_NAME \
   --resource-group $RG \
   --release-train stable \
-  --configuration-settings blobContainer=backup storageAccount=<STORAGE_ACCOUNT> \
-    storageAccountResourceGroup=$RG storageAccountSubscriptionId=<SUB_ID>
+  --configuration-settings \
+    blobContainer=backup \
+    storageAccount=$SA_NAME \
+    storageAccountResourceGroup=$RG \
+    storageAccountSubscriptionId=$(az account show --query id -o tsv)
+
+# Verify backup agent pods are running
+kubectl get pods -n dataprotection-microsoft
+
+# Step 3: Create Backup Vault with system-assigned identity
+az dataprotection backup-vault create \
+  --resource-group $RG \
+  --vault-name "bv-$CLUSTER_NAME" \
+  --location $LOCATION \
+  --storage-settings datastore-type="VaultStore" type="LocallyRedundant"
+
+# Enable system-assigned identity (required for backup operations)
+az dataprotection backup-vault update \
+  --resource-group $RG --vault-name "bv-$CLUSTER_NAME" --type SystemAssigned
+
+# Step 4: Assign required roles
+VAULT_PRINCIPAL=$(az dataprotection backup-vault show \
+  --resource-group $RG --vault-name "bv-$CLUSTER_NAME" \
+  --query identity.principalId -o tsv)
+CLUSTER_ID=$(az aks show --resource-group $RG --name $CLUSTER_NAME --query id -o tsv)
+SA_ID=$(az storage account show --name $SA_NAME --resource-group $RG --query id -o tsv)
+KUBELET_PRINCIPAL=$(az aks show --resource-group $RG --name $CLUSTER_NAME \
+  --query "identityProfile.kubeletidentity.objectId" -o tsv)
+
+az role assignment create --assignee-object-id $VAULT_PRINCIPAL \
+  --assignee-principal-type ServicePrincipal --role "Reader" --scope $CLUSTER_ID
+az role assignment create --assignee-object-id $VAULT_PRINCIPAL \
+  --assignee-principal-type ServicePrincipal \
+  --role "Storage Blob Data Contributor" --scope $SA_ID
+az role assignment create --assignee-object-id $KUBELET_PRINCIPAL \
+  --assignee-principal-type ServicePrincipal \
+  --role "Storage Blob Data Contributor" --scope $SA_ID
+
+# Step 5: Enable trusted access between vault and cluster
+az aks trustedaccess rolebinding create \
+  --resource-group $RG --cluster-name $CLUSTER_NAME \
+  --name backup-access \
+  --source-resource-id $(az dataprotection backup-vault show \
+    --resource-group $RG --vault-name "bv-$CLUSTER_NAME" --query id -o tsv) \
+  --roles Microsoft.DataProtection/backupVaults/backup-operator
+
+# Step 6: Create backup policy (4-hour incremental, 7-day retention)
+az dataprotection backup-policy create \
+  --resource-group $RG --vault-name "bv-$CLUSTER_NAME" --name "daily-7d" \
+  --policy '{
+    "datasourceTypes":["Microsoft.ContainerService/managedClusters"],
+    "name":"daily-7d","objectType":"BackupPolicy",
+    "policyRules":[
+      {"backupParameters":{"backupType":"Incremental","objectType":"AzureBackupParams"},
+       "dataStore":{"dataStoreType":"OperationalStore","objectType":"DataStoreInfoBase"},
+       "name":"BackupHourly","objectType":"AzureBackupRule",
+       "trigger":{"objectType":"ScheduleBasedTriggerContext",
+         "schedule":{"repeatingTimeIntervals":["R/2026-07-01T02:00:00+00:00/PT4H"],"timeZone":"UTC"},
+         "taggingCriteria":[{"isDefault":true,"tagInfo":{"id":"Default_","tagName":"Default"},"taggingPriority":99}]}},
+      {"isDefault":true,
+       "lifecycles":[{"deleteAfter":{"duration":"P7D","objectType":"AbsoluteDeleteOption"},
+         "sourceDataStore":{"dataStoreType":"OperationalStore","objectType":"DataStoreInfoBase"}}],
+       "name":"Default","objectType":"AzureRetentionRule"}
+    ]}'
 ```
 
-Or use the Azure Portal: **AKS cluster > Backup > Enable backup**.
+**Step 7 — Create backup instance via Azure Portal** (recommended — CLI has schema bugs):
+
+Navigate to: **Azure Portal → AKS cluster → Backup → Configure backup**
+- Select vault: `bv-<cluster>`
+- Select policy: `daily-7d`
+- Select namespaces: `fabtech`
+- Enable volume snapshots: Yes

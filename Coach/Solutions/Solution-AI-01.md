@@ -5,7 +5,7 @@
 ## Notes & Guidance
 
 - **GPU quota MUST be requested in advance** (24–48 hours). `Standard_NC4as_T4_v3`
-  (T4, 4 vCPUs) is the minimum viable option and cheapest in eastus.
+  (T4, 4 vCPUs) is the minimum viable option and cheapest in swedencentral.
 - If quota is not available, teams can still complete the conceptual portions and review
   the NVIDIA device plugin manifest — just skip the actual GPU workload deployment.
 - The NVIDIA device plugin DaemonSet is automatically deployed by AKS when a GPU node pool
@@ -31,7 +31,7 @@
 ```bash
 RG=rg-frontier-aks
 CLUSTER_NAME=aks-frontier
-LOCATION=eastus
+LOCATION=swedencentral
 
 # Check available GPU quota first
 az vm list-usage --location $LOCATION \
@@ -131,7 +131,7 @@ spec:
         image: ghcr.io/huggingface/text-generation-inference:2.0
         securityContext:
           runAsNonRoot: true
-          runAsUser: 1000
+          runAsUser: 100
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]

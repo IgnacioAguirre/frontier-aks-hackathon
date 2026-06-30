@@ -24,8 +24,6 @@ pools and right-sizing.
 - Review the **Azure Advisor cost recommendations** for your cluster and discuss at least
   one actionable item.
 
-> **Hint:** The Cost Analysis add-on requires the `EnableCostAnalysis` feature flag on the
-> cluster. It is available on Standard and Premium tiers (not Free tier).
 
 ## Success Criteria
 
