@@ -62,15 +62,34 @@ helm version
 flux --version
 ```
 
-6. Verify the required Azure resource providers (`Microsoft.ContainerService`,
+2. Verify the required Azure resource providers (`Microsoft.ContainerService`,
    `Microsoft.Monitor`, `Microsoft.Dashboard`, `Microsoft.KubernetesConfiguration`,
    `Microsoft.ContainerRegistry`, `Microsoft.Network`, `Microsoft.Insights`) are registered in
    your subscription.
-7. Confirm you have at least 16 available Standard D-series vCPU quota in your target Azure
+
+```bash
+az provider list \
+  --query "[?namespace=='Microsoft.ContainerService' || namespace=='Microsoft.Monitor' \
+  || namespace=='Microsoft.Dashboard' || namespace=='Microsoft.KubernetesConfiguration' \
+  || namespace=='Microsoft.ContainerRegistry' || namespace=='Microsoft.Network' \
+  || namespace=='Microsoft.Insights'].{Provider:namespace, State:registrationState}" \
+  -o table
+```
+
+Look for `Registered`. To register any that show `NotRegistered`:
+
+```bash
+az provider register --namespace <NAMESPACE>
+```
+   
+2. Confirm you have at least 16 available Standard D-series vCPU quota in your target Azure
    region.
 
-> **Important:** If any resource provider shows `NotRegistered`, run:
-> `az provider register --namespace <provider-name>` and wait for `Registered` state.
+```bash
+az vm list-usage --location <REGION> --query "[?contains(localName, 'Standard DSv') \
+  || contains(localName, 'Standard Dv')].{Name:localName, Used:currentValue, Limit:limit}" --output table
+```
+
 
 ## Learning Resources
 
