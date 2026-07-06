@@ -82,7 +82,7 @@ az aks create \
 > AKS Automatic pre-configures OIDC, Workload Identity, Cilium, cluster autoscaler,
 > Defender, and Azure Policy by default.
 
-### Configure kubectl
+## Configure kubectl
 
 ```bash
 az aks get-credentials \
@@ -97,7 +97,7 @@ kubelogin convert-kubeconfig -l azurecli
 kubectl get nodes -o wide
 ```
 
-### Verify OIDC and Workload Identity
+## Verify OIDC and Workload Identity
 
 ```bash
 az aks show \
