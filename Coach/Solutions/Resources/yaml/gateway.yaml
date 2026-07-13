@@ -15,7 +15,7 @@ metadata:
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-internal: "false"
 spec:
-  gatewayClassName: webapprouting.kubernetes.azure.com
+  gatewayClassName: approuting-istio
   listeners:
     - name: http
       protocol: HTTP
