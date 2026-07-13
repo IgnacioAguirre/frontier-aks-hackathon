@@ -1469,8 +1469,8 @@
             <li><a href="#stack">Services</a></li>
             <li><a href="#challenges">Challenges</a></li>
         </ul>
-        <a class="nav-cta" href="https://github.com/microsoft/frontier-aks-hackathon" target="_blank" rel="noopener noreferrer"
-            aria-label="GitHub" title="GitHub">
+        <a class="nav-cta" href="https://github.com/microsoft/frontier-aks-hackathon" target="_blank"
+            rel="noopener noreferrer" aria-label="GitHub" title="GitHub">
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path
                     d="M12 2C6.477 2 2 6.486 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.009-.866-.014-1.699-2.782.605-3.37-1.344-3.37-1.344-.455-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.004.07 1.532 1.033 1.532 1.033.892 1.53 2.341 1.088 2.91.832.092-.647.349-1.088.635-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.269 2.75 1.026A9.565 9.565 0 0112 6.844c.85.004 1.706.115 2.504.337 1.909-1.295 2.748-1.026 2.748-1.026.546 1.378.202 2.397.1 2.65.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.31.678.921.678 1.856 0 1.339-.012 2.419-.012 2.747 0 .269.18.58.688.481A10.022 10.022 0 0022 12.017C22 6.486 17.523 2 12 2z" />
@@ -2051,7 +2051,9 @@
                     <span class="card-num">CH·07</span>
                 </div>
                 <div class="card-title">GitOps with Flux v2</div>
-                <p class="card-desc">Implement pull-based continuous delivery via the AKS Flux v2 extension. Update the pre-configured manifest in your fork, demonstrate drift correction, and use PRs for progressive delivery.</p>
+                <p class="card-desc">Implement pull-based continuous delivery via the AKS Flux v2 extension. Update the
+                    pre-configured manifest in your fork, demonstrate drift correction, and use PRs for progressive
+                    delivery.</p>
                 <div class="card-footer">
                     <div class="card-tags"><span class="card-tag">flux-v2</span><span
                             class="card-tag">gitops</span><span class="card-tag">helm-release</span></div>
@@ -2346,6 +2348,21 @@
                 e.preventDefault();
                 openDrawer(i);
             });
+        });
+
+        // Intercept relative .md links inside rendered markdown so they open in the drawer
+        drawerContent.addEventListener('click', e => {
+            const a = e.target.closest('a');
+            if (!a) return;
+            const linkHref = a.getAttribute('href');
+            if (!linkHref || linkHref.startsWith('http') || !linkHref.endsWith('.md')) return;
+            e.preventDefault();
+            const currentHref = cards[currentIdx].getAttribute('href');
+            const fileDir = currentHref.substring(0, currentHref.lastIndexOf('/') + 1);
+            const resolved = new URL(linkHref, 'http://x/' + fileDir + 'f').pathname.replace(/^\//, '');
+            const matchIdx = cards.findIndex(c => c.getAttribute('href') === resolved);
+            if (matchIdx !== -1) openDrawer(matchIdx);
+            else closeDrawer();
         });
 
         closeBtn.addEventListener('click', closeDrawer);
