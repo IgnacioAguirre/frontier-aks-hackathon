@@ -7,7 +7,7 @@
 - Teams must complete the Helm chart and get the app running before choosing a routing option.
 - Option A (Gateway API via App Routing) is the recommended first path — same add-on, no extra infra.
 - Option B (AGC) requires a Managed Identity and ALB Controller install — allow 20–30 extra minutes.
-- For the database, use **in-cluster PostgreSQL** via the Bitnami Helm chart — no Azure resource provisioning needed, and the connection string stays cluster-internal.
+- For the database, use **in-cluster PostgreSQL** via the [CloudNativePG Operator Helm Chart](https://github.com/cloudnative-pg/charts/blob/main/charts/cloudnative-pg/README.md) — no Azure resource provisioning needed, and the connection string stays cluster-internal.
 
 ### Common Issues
 
@@ -25,32 +25,61 @@
 
 ### Part 0 — Deploy In-Cluster PostgreSQL
 
-Deploy PostgreSQL into the `fabtech` namespace using the Bitnami Helm chart. This keeps setup
-fast and self-contained — no Azure resource provisioning required.
+Deploy PostgreSQL into the `fabtech` namespace using two charts from [cloudnative-pg/charts](https://github.com/cloudnative-pg/charts):
+- **`cnpg/cloudnative-pg`** — installs the operator into `cnpg-system`
+- **`cnpg/cluster`** — creates a `Cluster` CR in the `fabtech` namespace
+
+This keeps setup fast and self-contained — no Azure resource provisioning required.
 
 ```bash
-DB_PASS=<choose-a-password>
 NAMESPACE=fabtech
+DB_PASS=<choose-a-password>
 
-helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo add cnpg https://cloudnative-pg.github.io/charts
 helm repo update
 
-helm upgrade --install fabtech-pg bitnami/postgresql \
-  --namespace $NAMESPACE \
+# 1. Install the CloudNativePG operator
+helm upgrade --install cnpg \
+  --namespace cnpg-system \
   --create-namespace \
-  --set auth.database=fabtech \
-  --set auth.username=fabadmin \
-  --set auth.password=$DB_PASS
+  cnpg/cloudnative-pg
+
+kubectl rollout status deployment/cnpg-cloudnative-pg \
+  --namespace cnpg-system
+
+# 2. Pre-create a secret with a known password so it can be stored in Key Vault later
+kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic fabtech-pg-credentials \
+  --namespace $NAMESPACE \
+  --from-literal=password=$DB_PASS \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# 3. Deploy a PostgreSQL cluster referencing the password secret
+helm upgrade --install fabtech-pg \
+  --namespace $NAMESPACE \
+  cnpg/cluster \
+  --set cluster.instances=1 \
+  --set cluster.storage.size=1Gi \
+  --set cluster.initdb.database=fabtech \
+  --set cluster.initdb.owner=fabadmin \
+  --set cluster.initdb.secret.name=fabtech-pg-credentials
+
+# Wait for the cluster to be ready
+kubectl wait cluster/fabtech-pg \
+  --for=condition=Ready \
+  --timeout=120s \
+  -n $NAMESPACE
 
 # Verify the pod is running
-kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=postgresql
+kubectl get pods -n $NAMESPACE -l cnpg.io/cluster=fabtech-pg
 
 # Connection string (used in Challenge 04)
-echo "postgresql://fabadmin:${DB_PASS}@fabtech-pg-postgresql.${NAMESPACE}.svc.cluster.local:5432/fabtech"
+echo "postgresql://fabadmin:${DB_PASS}@fabtech-pg-rw.${NAMESPACE}.svc.cluster.local:5432/fabtech"
 ```
 
-> **Note:** The API falls back to serving data from bundled JSON files when `DATABASE_URL` is not
-> set. The connection string will be stored in Key Vault and injected via CSI driver in Challenge 04.
+> **Note:** The read-write service CloudNativePG creates is `fabtech-pg-rw.<namespace>.svc.cluster.local:5432`.
+> The API falls back to bundled JSON files when `DATABASE_URL` is not set. The connection string
+> will be stored in Key Vault and injected via CSI driver in Challenge 04.
 
 ### Part 1 — Enable App Routing & Deploy the Helm Chart
 

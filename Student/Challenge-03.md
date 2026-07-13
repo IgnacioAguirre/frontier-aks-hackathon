@@ -13,9 +13,10 @@ modern Gateway API-based traffic routing approaches AKS supports today:
 
 - Enable the **App Routing add-on** on your cluster (with `--enable-app-routing-istio`) if the
   `approuting-istio` `GatewayClass` is not already available.
-- Deploy an **in-cluster PostgreSQL database** for the FabTechOps application using the
-  [Bitnami PostgreSQL Helm chart](https://artifacthub.io/packages/helm/bitnami/postgresql).
-  Deploy it into the same `fabtech` namespace as the application.
+- Deploy an **in-cluster PostgreSQL database** for the FabTechOps application using both charts
+  from [cloudnative-pg/charts](https://github.com/cloudnative-pg/charts):
+  - [`cnpg/cloudnative-pg`](https://github.com/cloudnative-pg/charts/blob/main/charts/cloudnative-pg/README.md) — the operator (install into `cnpg-system`)
+  - [`cnpg/cluster`](https://github.com/cloudnative-pg/charts/blob/main/charts/cluster/README.md) — a `Cluster` CR (deploy into the `fabtech` namespace)
 - Package the FabTechOps **API** and **Web** components as a **Helm chart** and deploy them
   to a dedicated namespace in your cluster.
   - The configuration should support changing the image tag and replica count without editing the templates.
@@ -60,4 +61,5 @@ modern Gateway API-based traffic routing approaches AKS supports today:
 - [AGC — ALB Controller install](https://learn.microsoft.com/azure/application-gateway/for-containers/quickstart-deploy-application-gateway-for-containers-alb-controller)
 - [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/)
 - [Helm quickstart guide](https://helm.sh/docs/intro/quickstart/)
-- [Bitnami PostgreSQL Helm chart](https://artifacthub.io/packages/helm/bitnami/postgresql)
+- [CloudNativePG Operator chart (`cnpg/cloudnative-pg`)](https://github.com/cloudnative-pg/charts/blob/main/charts/cloudnative-pg/README.md)
+- [CloudNativePG Cluster chart (`cnpg/cluster`)](https://github.com/cloudnative-pg/charts/blob/main/charts/cluster/README.md)

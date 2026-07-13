@@ -16,8 +16,8 @@ Deploy an AKS cluster that meets the following requirements:
 - Uses **Cilium** as the network dataplane
 - Has **Node Auto Provisioning** enabled — required for Challenge 06, depends on **Cilium** plus **Azure CNI Overlay**, and **cannot be enabled after cluster creation**
 - Has **Workload Identity** (OIDC issuer) enabled — required for Challenge 04
-- Nodes are spread across **all available Availability Zones** for the region
-- Uses **VMSS-based node pools** with **AzureLinux** as the node OS
+- Nodes are spread across **all available Availability Zones** for the region   
+- Uses **VMSS-based node pools** with **AzureLinux 3** as the node OS
 - Is **attached to your ACR** from Challenge 01 so it can pull images without credentials
 - Has a **system node pool** with at least 3 nodes
 - Sets **`--auto-upgrade-channel stable`** and **`--node-os-upgrade-channel NodeImage`** for automated patching
@@ -41,7 +41,8 @@ Once the cluster is running:
 3. Workload Identity / OIDC issuer is enabled on the cluster.
 4. Auto-upgrade channel is set to **stable** and node OS upgrade channel is set to **NodeImage**.
 5. *(AKS Standard only)* `az aks show --query 'agentPoolProfiles[].nodeProvisioningMode'` returns `Auto`.
-6. Explain to your coach the difference between **AKS Standard** and **AKS Automatic**, and which one you chose and why.
+6. Validate Cilium is the network dataplane by checking the CNI plugin in use on the nodes.
+7. Explain to your coach the difference between **AKS Standard** and **AKS Automatic**, and which one you chose and why.
 
 ## Learning Resources
 
