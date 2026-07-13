@@ -39,10 +39,9 @@ Once the cluster is running:
 1. A running AKS cluster exists with at least 3 nodes in multiple availability zones.
 2. The cluster uses **Azure CNI Overlay** — pod CIDRs are from an overlay range, not the VNet CIDR.
 3. Workload Identity / OIDC issuer is enabled on the cluster.
-4. The cluster can pull images from your ACR without an explicit secret.
-5. Auto-upgrade channel is set to **stable** and node OS upgrade channel is set to **NodeImage**.
-6. *(AKS Standard only)* `az aks show --query 'agentPoolProfiles[].nodeProvisioningMode'` returns `Auto`.
-7. Explain to your coach the difference between **AKS Standard** and **AKS Automatic**, and which one you chose and why.
+4. Auto-upgrade channel is set to **stable** and node OS upgrade channel is set to **NodeImage**.
+5. *(AKS Standard only)* `az aks show --query 'agentPoolProfiles[].nodeProvisioningMode'` returns `Auto`.
+6. Explain to your coach the difference between **AKS Standard** and **AKS Automatic**, and which one you chose and why.
 
 ## Learning Resources
 
