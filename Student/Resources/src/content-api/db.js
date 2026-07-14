@@ -17,10 +17,7 @@ async function init() {
   // For Azure Database for PostgreSQL, always include ?sslmode=require
   pool = new Pool({
     connectionString: connStr,
-    connectionTimeoutMillis: 5000,
-    ssl: connStr.includes('localhost') || connStr.includes('127.0.0.1')
-      ? false
-      : { rejectUnauthorized: true }
+    connectionTimeoutMillis: 5000
   });
 
   try {
