@@ -1,7 +1,7 @@
 api:
   image:
-    repository: ghcr.io/microsoft/frontier-aks-hackathon/fabtech-api
-    tag: latest
+    repository: akshackathono76n8a.azurecr.io/fabtech-api
+    tag: v1
     pullPolicy: Always
   replicaCount: 2
   # Horizontal Pod Autoscaler (Challenge 06 Part 1). When enabled, the
