@@ -1,9 +1,16 @@
 api:
   image:
-    repository: <ACR_LOGIN_SERVER>/fabtech-api
-    tag: v1
-    pullPolicy: IfNotPresent
+    repository: ghcr.io/microsoft/frontier-aks-hackathon/fabtech-api
+    tag: latest
+    pullPolicy: Always
   replicaCount: 2
+  # Horizontal Pod Autoscaler (Challenge 06 Part 1). When enabled, the
+  # Deployment omits a static replica count so the HPA owns scaling.
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 50
   service:
     port: 3001
   pdb:
@@ -16,10 +23,29 @@ api:
     limits:
       cpu: 500m
       memory: 256Mi
+  # Workload Identity ServiceAccount for the API (Challenge 04).
+  serviceAccount:
+    create: true
+    name: fabtech-api-sa
+    # Client ID of the fabtech-workload-identity user-assigned managed identity.
+    clientId: "7a6d094f-06ca-49da-93db-c09926129960"
+  # Toggle the Key Vault CSI secret mount + DATABASE_URL injection.
+  # Keep false until the CSI add-on, federated credential, and
+  # SecretProviderClass are all in place, otherwise pods won't start.
+  workloadIdentity:
+    enabled: true
+  keyVault:
+    secretProviderClass: fabtech-secrets
+    name: kvfabtecho76n8a
+    tenantId: "12af5272-b532-4d27-bf61-37600ff1c9fc"
+    # Secret name inside Key Vault.
+    secretName: db-connection-string
+    # Kubernetes Secret the CSI driver syncs the value into.
+    syncedSecretName: fabtech-db-secret
 
 web:
   image:
-    repository: <ACR_LOGIN_SERVER>/fabtech-web
+    repository: akshackathono76n8a.azurecr.io/fabtech-web
     tag: v1
     pullPolicy: IfNotPresent
   replicaCount: 2

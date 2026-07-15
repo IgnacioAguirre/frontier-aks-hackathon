@@ -4,7 +4,9 @@ metadata:
   name: fabtech-api
   namespace: {{ .Release.Namespace }}
 spec:
+  {{- if not .Values.api.autoscaling.enabled }}
   replicas: {{ .Values.api.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       app: fabtech-api
@@ -12,9 +14,11 @@ spec:
     metadata:
       labels:
         app: fabtech-api
-        # Uncomment when using Workload Identity (Challenge 04)
-        # azure.workload.identity/use: "true"
+        {{- if .Values.api.workloadIdentity.enabled }}
+        azure.workload.identity/use: "true"
+        {{- end }}
     spec:
+      serviceAccountName: {{ .Values.api.serviceAccount.name }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 100
@@ -27,8 +31,6 @@ spec:
           labelSelector:
             matchLabels:
               app: fabtech-api
-      # Uncomment when using Workload Identity (Challenge 04)
-      # serviceAccountName: fabtech-api-sa
       containers:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
@@ -53,21 +55,24 @@ spec:
             capabilities:
               drop: ["ALL"]
             readOnlyRootFilesystem: true
-          # Uncomment to mount Key Vault secrets via CSI driver (Challenge 04)
-          # volumeMounts:
-          #   - name: secrets-store
-          #     mountPath: /mnt/secrets
-          #     readOnly: true
-          # env:
-          #   - name: DATABASE_URL
-          #     valueFrom:
-          #       secretKeyRef:
-          #         name: fabtech-db-secret
-          #         key: connectionString
-      # volumes:
-      #   - name: secrets-store
-      #     csi:
-      #       driver: secrets-store.csi.k8s.io
-      #       readOnly: true
-      #       volumeAttributes:
-      #         secretProviderClass: fabtech-secrets
+          {{- if .Values.api.workloadIdentity.enabled }}
+          volumeMounts:
+            - name: secrets-store
+              mountPath: /mnt/secrets
+              readOnly: true
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.keyVault.syncedSecretName }}
+                  key: connectionString
+          {{- end }}
+      {{- if .Values.api.workloadIdentity.enabled }}
+      volumes:
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ .Values.api.keyVault.secretProviderClass }}
+      {{- end }}
